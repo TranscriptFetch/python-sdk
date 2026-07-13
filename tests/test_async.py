@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import httpx
 import respx
-from tests.data import BASE, VIDEO_ENV, video_list
 
+from tests.data import BASE, VIDEO_ENV, video_list
 from transcriptfetch import AsyncTranscriptFetch
 
 

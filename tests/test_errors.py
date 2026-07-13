@@ -3,8 +3,8 @@ from __future__ import annotations
 import httpx
 import pytest
 import respx
-from tests.data import BASE, VIDEO_ENV, error_env
 
+from tests.data import BASE, VIDEO_ENV, error_env
 from transcriptfetch import (
     AuthenticationError,
     IdempotencyConflictError,

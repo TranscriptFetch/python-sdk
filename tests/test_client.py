@@ -5,8 +5,8 @@ import json
 import httpx
 import pytest
 import respx
-from tests.data import BASE, BATCH_ENV, HEALTH, VIDEO_ENV, video_list
 
+from tests.data import BASE, BATCH_ENV, HEALTH, VIDEO_ENV, video_list
 from transcriptfetch import TranscriptFetch
 
 
