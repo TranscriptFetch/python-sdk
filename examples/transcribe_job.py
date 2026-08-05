@@ -1,8 +1,9 @@
 """Fetch a source that may have no captions, then poll until it is transcribed.
 
-Any supported input works here: a YouTube, TikTok or Instagram URL, or a direct
-media file URL. When captions exist the first call already returns the text;
-when they do not, the API transcribes the audio and hands back a job to poll.
+Any supported input works here: a YouTube, TikTok or Instagram URL, a podcast
+link, or a direct media file URL. When captions exist the first call already
+returns the text; when they do not, the API transcribes the audio and hands back
+a job to poll. Podcast audio never has captions, so a podcast always polls.
 Polling is free, so the loop below costs at most the one credit on delivery.
 """
 
@@ -20,5 +21,7 @@ with TranscriptFetch() as tf:  # reads TRANSCRIPTFETCH_API_KEY
         time.sleep(3)
         t = tf.transcripts.job(t.job_id)
 
+    if t.podcast:  # only a podcast link resolves to show/episode context
+        print(f"{t.podcast.show} - {t.podcast.episode}")
     print("title:", t.title)
     print("text:", (t.text or "(no transcript)")[:500])

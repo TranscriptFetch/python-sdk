@@ -3,8 +3,9 @@ job, plus auto-paginating iterators. Sync (:class:`Transcripts`) and async
 (:class:`AsyncTranscripts`) variants share the parsing helpers below.
 
 ``video`` and ``batch`` take any supported source (YouTube, TikTok, Instagram,
-or a direct media file URL). ``channel``, ``playlist`` and ``search`` are
-YouTube-only, since no other supported platform exposes those concepts.
+a direct media file URL, or a podcast link). ``channel``, ``playlist`` and
+``search`` are YouTube-only, since no other supported platform exposes those
+concepts.
 """
 
 from __future__ import annotations
@@ -95,10 +96,16 @@ class Transcripts:
         """Fetch a single transcript (text + timestamped segments).
 
         ``video`` is a YouTube, TikTok or Instagram URL, a direct media file
-        URL, or a bare YouTube ID. When the source has no captions the API
-        transcribes its audio and answers with a job: the returned
+        URL, a bare YouTube ID, or a podcast link (a Spotify or Apple Podcasts
+        episode URL, or an RSS feed URL), which is resolved to that episode's
+        audio automatically and comes back with a ``podcast`` block naming the
+        show and episode.
+
+        When the source has no captions the API transcribes its audio and
+        answers with a job instead: the returned
         :class:`~transcriptfetch.Transcript` then has ``status ==
-        "processing"`` and a ``job_id`` to pass to :meth:`job`.
+        "processing"`` and a ``job_id`` to pass to :meth:`job`. Podcasts always
+        take that path.
         """
         env = self._c._request(
             "POST", _VIDEO, body={"video": video}, idempotent=True, idempotency_key=idempotency_key

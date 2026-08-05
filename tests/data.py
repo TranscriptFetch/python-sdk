@@ -78,6 +78,46 @@ JOB_DONE_ENV: dict[str, Any] = {
     "usage": {"credits_spent": 1, "balance": 96, "bytes": 100},
 }
 
+# A podcast link: 202 with the resolved show/episode, then the finished job.
+# Podcast audio never has captions, so this is the only path a podcast takes.
+PODCAST_ACCEPTED_ENV: dict[str, Any] = {
+    "ok": True,
+    "request_id": "req_pod",
+    "status": "processing",
+    "job_id": "asr_2",
+    "poll_url": "/api/v1/transcripts/jobs/asr_2",
+    "data": {
+        "kind": "transcript_job",
+        "video_id": "https://feeds.example.com/show.xml",
+        "platform": "podcast",
+        "podcast": {
+            "show": "The Example Show",
+            "episode": "Ep 12: Widgets",
+            "published_at": "2026-07-01T00:00:00.000Z",
+            "feed_url": "https://feeds.example.com/show.xml",
+            "audio_url": "https://cdn.example.com/ep12.mp3",
+            "resolved_via": "rss",
+        },
+    },
+}
+
+PODCAST_DONE_ENV: dict[str, Any] = {
+    "ok": True,
+    "request_id": "req_pod",
+    "status": "completed",
+    "job_id": "asr_2",
+    "data": {
+        "kind": "transcript",
+        "video_id": "https://feeds.example.com/show.xml",
+        "platform": "podcast",
+        "title": "Ep 12: Widgets",
+        "podcast": {"show": "The Example Show", "episode": "Ep 12: Widgets"},
+        "text": "welcome back",
+        "segments": [{"start": 0, "duration": 2.0, "text": "welcome back"}],
+    },
+    "usage": {"credits_spent": 1, "balance": 95, "bytes": 200},
+}
+
 HEALTH: dict[str, Any] = {
     "status": "ok",
     "service": "transcriptfetch-api",

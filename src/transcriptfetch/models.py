@@ -32,6 +32,22 @@ class Segment(_Model):
     text: str = ""
 
 
+class Podcast(_Model):
+    """Show/episode context, present when the input resolved to a podcast.
+
+    Only ``show`` and ``episode`` are dependable. A cached hit on a bare audio
+    URL knows its show but not the feed it was resolved from, so the resolution
+    fields come back empty there.
+    """
+
+    show: Optional[str] = None
+    episode: Optional[str] = None
+    published_at: Optional[str] = None
+    feed_url: Optional[str] = None
+    audio_url: Optional[str] = None
+    resolved_via: Optional[str] = None
+
+
 class Transcript(_Model):
     """A single video's transcript, from any supported source.
 
@@ -41,13 +57,16 @@ class Transcript(_Model):
     a 202 into a validation error instead of a pollable job. In that case
     ``text``/``segments`` are empty and ``status``/``job_id`` are set, so pass
     ``job_id`` to ``transcripts.job()`` until ``status == "completed"``.
+    Podcasts always take that path, since podcast audio never has captions.
     """
 
     kind: str = "transcript"
     video_id: str = ""
+    platform: Optional[str] = None  # youtube | tiktok | instagram | podcast | file
     title: Optional[str] = None
     text: Optional[str] = None
     segments: List[Segment] = Field(default_factory=list)
+    podcast: Optional[Podcast] = None  # set only when the input was a podcast
     usage: Optional[Usage] = None
     # Envelope-level fields, lifted onto the model so an async job round-trips
     # as one object (the API returns them beside ``data``, not inside it).

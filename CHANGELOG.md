@@ -12,9 +12,13 @@ declared stable at 1.0.0 rather than contradicting that.
 - Full API coverage: added `me()` (validate the key + read the balance, free)
   and `transcripts.job()` (poll an audio-transcription job), on both clients.
 - `transcripts.video` / `batch` are now documented as accepting any supported
-  source: YouTube, TikTok, Instagram, and direct media file URLs. `channel`,
-  `playlist` and `search` remain YouTube-only concepts. No behavior change; the
-  clients always passed the input through untouched.
+  source: YouTube, TikTok, Instagram, direct media file URLs, and podcast links
+  (a Spotify or Apple Podcasts episode URL, or an RSS feed URL, resolved to that
+  episode's audio automatically). `channel`, `playlist` and `search` remain
+  YouTube-only concepts. No behavior change; the clients always passed the input
+  through untouched.
+- New `Podcast` model on `Transcript.podcast`, carrying the show and episode a
+  podcast link resolved to, plus `Transcript.platform`.
 - Fixed: a 202 (no captions, so audio transcription started) raised a validation
   error because `Transcript.kind` was pinned to `"transcript"`. It now returns a
   `Transcript` with `status="processing"` and a `job_id` to poll.

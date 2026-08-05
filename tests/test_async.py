@@ -3,7 +3,7 @@ from __future__ import annotations
 import httpx
 import respx
 
-from tests.data import BASE, JOB_DONE_ENV, ME_ENV, VIDEO_ENV, video_list
+from tests.data import BASE, JOB_DONE_ENV, ME_ENV, PODCAST_DONE_ENV, VIDEO_ENV, video_list
 from transcriptfetch import AsyncTranscriptFetch
 
 
@@ -48,3 +48,14 @@ async def test_async_job_poll() -> None:
         t = await tf.transcripts.job("asr_1")
     assert t.status == "completed"
     assert t.text == "hello world"
+
+
+@respx.mock
+async def test_async_podcast_job() -> None:
+    respx.get(f"{BASE}/api/v1/transcripts/jobs/asr_2").mock(
+        return_value=httpx.Response(200, json=PODCAST_DONE_ENV)
+    )
+    async with AsyncTranscriptFetch(api_key="k", base_url=BASE, max_retries=0) as tf:
+        t = await tf.transcripts.job("asr_2")
+    assert t.platform == "podcast"
+    assert t.podcast is not None and t.podcast.show == "The Example Show"
