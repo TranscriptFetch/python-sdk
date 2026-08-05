@@ -6,7 +6,17 @@ import httpx
 import pytest
 import respx
 
-from tests.data import BASE, BATCH_ENV, HEALTH, VIDEO_ENV, video_list
+from tests.data import (
+    BASE,
+    BATCH_ENV,
+    HEALTH,
+    JOB_ACCEPTED_ENV,
+    JOB_DONE_ENV,
+    JOB_PROCESSING_ENV,
+    ME_ENV,
+    VIDEO_ENV,
+    video_list,
+)
 from transcriptfetch import TranscriptFetch
 
 
@@ -84,6 +94,45 @@ def test_health_is_unauthenticated() -> None:
         h = tf.health()
     assert h["status"] == "ok"
     assert "authorization" not in route.calls.last.request.headers
+
+
+@respx.mock
+def test_me_returns_balance() -> None:
+    route = respx.get(f"{BASE}/api/v1/me").mock(return_value=httpx.Response(200, json=ME_ENV))
+    with _client() as tf:
+        me = tf.me()
+    assert me.user_id == "user_1"
+    assert me.credits == 250
+    assert me.usage is not None and me.usage.credits_spent == 0
+    assert route.calls.last.request.headers["authorization"] == "Bearer tf_test"
+
+
+@respx.mock
+def test_video_without_captions_returns_pollable_job() -> None:
+    # A 202 carries kind="transcript_job" and no transcript body; it must not
+    # blow up parsing, since polling is the documented path from here.
+    respx.post(f"{BASE}/api/v1/transcripts/video").mock(
+        return_value=httpx.Response(202, json=JOB_ACCEPTED_ENV)
+    )
+    respx.get(f"{BASE}/api/v1/transcripts/jobs/asr_1").mock(
+        side_effect=[
+            httpx.Response(200, json=JOB_PROCESSING_ENV),
+            httpx.Response(200, json=JOB_DONE_ENV),
+        ]
+    )
+    with _client() as tf:
+        started = tf.transcripts.video("https://www.tiktok.com/@u/video/7137723462233555205")
+        assert started.status == "processing"
+        assert started.job_id == "asr_1"
+        assert started.poll_url == "/api/v1/transcripts/jobs/asr_1"
+        assert started.text is None
+
+        assert tf.transcripts.job("asr_1").status == "processing"
+        done = tf.transcripts.job("asr_1")
+
+    assert done.status == "completed"
+    assert done.text == "hello world"
+    assert done.usage is not None and done.usage.balance == 96
 
 
 def test_missing_api_key_raises(monkeypatch: pytest.MonkeyPatch) -> None:

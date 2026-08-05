@@ -69,6 +69,19 @@ def test_rate_limit_exposes_retry_after() -> None:
 
 
 @respx.mock
+def test_failed_job_raises_rather_than_returning_a_transcript() -> None:
+    # A failed job is HTTP 200 with ok:false, so the envelope parser decides it
+    # is an error. Assert that, because the alternative would be a Transcript
+    # that silently has no text.
+    respx.get(f"{BASE}/api/v1/transcripts/jobs/asr_1").mock(
+        return_value=httpx.Response(200, json=error_env("asr_failed", "Transcription failed."))
+    )
+    with _client() as tf, pytest.raises(APIError) as info:
+        tf.transcripts.job("asr_1")
+    assert info.value.code == "asr_failed"
+
+
+@respx.mock
 def test_retries_then_succeeds() -> None:
     respx.post(f"{BASE}/api/v1/transcripts/video").mock(
         side_effect=[

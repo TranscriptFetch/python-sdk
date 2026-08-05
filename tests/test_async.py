@@ -3,7 +3,7 @@ from __future__ import annotations
 import httpx
 import respx
 
-from tests.data import BASE, VIDEO_ENV, video_list
+from tests.data import BASE, JOB_DONE_ENV, ME_ENV, VIDEO_ENV, video_list
 from transcriptfetch import AsyncTranscriptFetch
 
 
@@ -29,3 +29,22 @@ async def test_async_auto_pagination() -> None:
     async with AsyncTranscriptFetch(api_key="k", base_url=BASE, max_retries=0) as tf:
         ids = [v.video_id async for v in tf.transcripts.iter_playlist("PL", limit=1)]
     assert ids == ["a", "b"]
+
+
+@respx.mock
+async def test_async_me() -> None:
+    respx.get(f"{BASE}/api/v1/me").mock(return_value=httpx.Response(200, json=ME_ENV))
+    async with AsyncTranscriptFetch(api_key="k", base_url=BASE, max_retries=0) as tf:
+        me = await tf.me()
+    assert me.credits == 250
+
+
+@respx.mock
+async def test_async_job_poll() -> None:
+    respx.get(f"{BASE}/api/v1/transcripts/jobs/asr_1").mock(
+        return_value=httpx.Response(200, json=JOB_DONE_ENV)
+    )
+    async with AsyncTranscriptFetch(api_key="k", base_url=BASE, max_retries=0) as tf:
+        t = await tf.transcripts.job("asr_1")
+    assert t.status == "completed"
+    assert t.text == "hello world"

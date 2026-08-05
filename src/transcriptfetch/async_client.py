@@ -15,8 +15,10 @@ from ._transport import (
     is_retryable,
     new_idempotency_key,
     parse_envelope,
+    parse_usage,
 )
 from .errors import APIConnectionError, APITimeoutError
+from .models import Account
 from .resources.transcripts import AsyncTranscripts
 
 
@@ -77,6 +79,13 @@ class AsyncTranscriptFetch:
                 attempt += 1
                 continue
             return parse_envelope(resp)
+
+    async def me(self) -> Account:
+        """Validate the API key and read the account's credit balance. Free."""
+        env = await self._request("GET", "/api/v1/me")
+        account = Account.model_validate(env.get("data") or {})
+        account.usage = parse_usage(env)
+        return account
 
     async def health(self) -> dict[str, Any]:
         """Unauthenticated liveness probe."""

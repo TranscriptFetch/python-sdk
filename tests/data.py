@@ -38,6 +38,46 @@ BATCH_ENV: dict[str, Any] = {
     "usage": {"credits_spent": 1, "balance": 98, "bytes": 10},
 }
 
+ME_ENV: dict[str, Any] = {
+    "ok": True,
+    "request_id": "req_me",
+    "data": {"kind": "me", "user_id": "user_1", "credits": 250},
+    "usage": {"credits_spent": 0, "balance": 250, "bytes": 0},
+}
+
+# A 202 from /transcripts/video: no captions, so audio transcription started.
+JOB_ACCEPTED_ENV: dict[str, Any] = {
+    "ok": True,
+    "request_id": "req_job",
+    "status": "processing",
+    "job_id": "asr_1",
+    "poll_url": "/api/v1/transcripts/jobs/asr_1",
+    "data": {"kind": "transcript_job", "video_id": "abc", "platform": "tiktok"},
+}
+
+JOB_PROCESSING_ENV: dict[str, Any] = {
+    "ok": True,
+    "request_id": "req_job",
+    "status": "processing",
+    "job_id": "asr_1",
+    "data": None,
+}
+
+JOB_DONE_ENV: dict[str, Any] = {
+    "ok": True,
+    "request_id": "req_job",
+    "status": "completed",
+    "job_id": "asr_1",
+    "data": {
+        "kind": "transcript",
+        "video_id": "abc",
+        "title": "Example",
+        "text": "hello world",
+        "segments": [{"start": 0, "duration": 1.5, "text": "hi"}],
+    },
+    "usage": {"credits_spent": 1, "balance": 96, "bytes": 100},
+}
+
 HEALTH: dict[str, Any] = {
     "status": "ok",
     "service": "transcriptfetch-api",

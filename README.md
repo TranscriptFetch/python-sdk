@@ -1,6 +1,8 @@
 # TranscriptFetch Python SDK
 
-Official, typed Python client for the [TranscriptFetch](https://transcriptfetch.com) API: fetch YouTube transcripts, channels, playlists, and search results as clean, structured data. Sync + async, fully type-hinted.
+Official, typed Python client for the [TranscriptFetch](https://transcriptfetch.com) API: fetch transcripts as clean, structured data, plus YouTube channel, playlist and search listings. Sync + async, fully type-hinted.
+
+Transcripts come from **YouTube, TikTok, Instagram, or a direct media file URL** (mp3/mp4/wav and friends). Channel, playlist and search are YouTube-only, since no other supported platform has those concepts.
 
 ```bash
 pip install transcriptfetch-sdk
@@ -14,7 +16,7 @@ from transcriptfetch import TranscriptFetch
 # api_key falls back to the TRANSCRIPTFETCH_API_KEY env var
 tf = TranscriptFetch(api_key="tf_live_...")
 
-t = tf.transcripts.video("https://youtu.be/aircAruvnKk")
+t = tf.transcripts.video("https://youtu.be/aircAruvnKk")   # or a TikTok / Instagram / file URL
 print(t.title)
 print(t.text)
 for seg in t.segments:
@@ -28,15 +30,31 @@ Get an API key (100 free credits) at <https://transcriptfetch.com/app>. One cred
 ## Endpoints
 
 ```python
-tf.transcripts.video(video)                    # single transcript (text + segments)
-tf.transcripts.channel(channel, limit=, cursor=)   # a channel's videos (metadata)
-tf.transcripts.playlist(playlist, limit=, cursor=) # a playlist's videos
+tf.transcripts.video(video)                        # single transcript (text + segments)
+tf.transcripts.batch(video_ids)                    # up to 50 transcripts in one call
+tf.transcripts.channel(channel, limit=, cursor=)   # a YouTube channel's videos (metadata)
+tf.transcripts.playlist(playlist, limit=, cursor=) # a YouTube playlist's videos
 tf.transcripts.search(query, limit=, cursor=)      # search YouTube
-tf.transcripts.batch(video_ids)                # up to 50 transcripts in one call
-tf.health()                                    # unauthenticated liveness probe
+tf.transcripts.job(job_id)                         # poll an audio-transcription job (free)
+tf.me()                                            # validate the key + read the balance (free)
+tf.health()                                        # unauthenticated liveness probe
 ```
 
-`video`/`channel`/`playlist` accept URLs or raw IDs (normalized automatically).
+`video` and `batch` take a YouTube, TikTok or Instagram URL, a direct media file URL, or a bare YouTube ID. `channel`/`playlist` take a URL, an `@handle`/`PL…` ID, or a raw ID. IDs and URLs are normalized automatically.
+
+## Videos without captions
+
+When a source has no captions, the API transcribes its audio and answers with a job instead of a transcript. That comes back as a `Transcript` with `status == "processing"` and a `job_id`; poll it for free until it completes:
+
+```python
+import time
+
+t = tf.transcripts.video("https://www.tiktok.com/@user/video/7137723462233555205")
+while t.status == "processing":
+    time.sleep(3)
+    t = tf.transcripts.job(t.job_id)
+print(t.text)
+```
 
 ## Pagination
 

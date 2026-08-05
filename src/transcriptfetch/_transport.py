@@ -16,6 +16,7 @@ import httpx
 from ._config import ClientConfig
 from ._version import __version__
 from .errors import raise_api_error
+from .models import Usage
 
 USER_AGENT = f"transcriptfetch-python/{__version__}"
 
@@ -32,6 +33,12 @@ def build_headers(
     if idempotency_key:
         headers["Idempotency-Key"] = idempotency_key
     return headers
+
+
+def parse_usage(env: dict[str, Any]) -> Optional[Usage]:
+    """Lift the envelope-level ``usage`` block off a response, if present."""
+    raw = env.get("usage")
+    return Usage.model_validate(raw) if isinstance(raw, dict) else None
 
 
 def new_idempotency_key() -> str:

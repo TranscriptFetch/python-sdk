@@ -26,6 +26,7 @@ from .errors import (
     UpstreamUnavailableError,
 )
 from .models import (
+    Account,
     BatchResponse,
     BatchResult,
     Segment,
@@ -41,6 +42,7 @@ __all__ = [
     "AsyncTranscriptFetch",
     # models
     "Usage",
+    "Account",
     "Segment",
     "Transcript",
     "Video",

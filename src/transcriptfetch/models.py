@@ -33,19 +33,41 @@ class Segment(_Model):
 
 
 class Transcript(_Model):
-    """A single video's transcript (``kind == "transcript"``)."""
+    """A single video's transcript, from any supported source.
 
-    kind: Literal["transcript"] = "transcript"
+    Also covers the "not ready yet" case. When a video has no captions the API
+    transcribes the audio and answers 202 with ``kind == "transcript_job"``,
+    which is why ``kind`` is a plain ``str``: pinning it to a literal would turn
+    a 202 into a validation error instead of a pollable job. In that case
+    ``text``/``segments`` are empty and ``status``/``job_id`` are set, so pass
+    ``job_id`` to ``transcripts.job()`` until ``status == "completed"``.
+    """
+
+    kind: str = "transcript"
     video_id: str = ""
     title: Optional[str] = None
     text: Optional[str] = None
     segments: List[Segment] = Field(default_factory=list)
     usage: Optional[Usage] = None
+    # Envelope-level fields, lifted onto the model so an async job round-trips
+    # as one object (the API returns them beside ``data``, not inside it).
+    status: Optional[str] = None  # "processing" | "completed", async jobs only
+    job_id: Optional[str] = None
+    poll_url: Optional[str] = None
 
     @field_validator("segments", mode="before")
     @classmethod
     def _null_segments_to_list(cls, v: Any) -> Any:
         return v or []
+
+
+class Account(_Model):
+    """The calling key's account (``kind == "me"``): identity + credit balance."""
+
+    kind: Literal["me"] = "me"
+    user_id: str = ""
+    credits: Optional[int] = None  # null for unlimited (admin) accounts
+    usage: Optional[Usage] = None
 
 
 class Video(_Model):

@@ -1,13 +1,18 @@
-"""The ``transcripts`` resource: video / channel / playlist / search / batch,
-plus auto-paginating iterators. Sync (:class:`Transcripts`) and async
+"""The ``transcripts`` resource: video / channel / playlist / search / batch /
+job, plus auto-paginating iterators. Sync (:class:`Transcripts`) and async
 (:class:`AsyncTranscripts`) variants share the parsing helpers below.
+
+``video`` and ``batch`` take any supported source (YouTube, TikTok, Instagram,
+or a direct media file URL). ``channel``, ``playlist`` and ``search`` are
+YouTube-only, since no other supported platform exposes those concepts.
 """
 
 from __future__ import annotations
 
 from typing import Any, AsyncIterator, Iterable, Iterator, Optional, Protocol
 
-from ..models import BatchResponse, Transcript, Usage, VideoList
+from .._transport import parse_usage as _usage
+from ..models import BatchResponse, Transcript, VideoList
 
 # ── Paths ────────────────────────────────────────────────────────────────────
 _VIDEO = "/api/v1/transcripts/video"
@@ -15,6 +20,7 @@ _CHANNEL = "/api/v1/transcripts/channel"
 _PLAYLIST = "/api/v1/transcripts/playlist"
 _SEARCH = "/api/v1/transcripts/search"
 _BATCH = "/api/v1/transcripts/batch"
+_JOB = "/api/v1/transcripts/jobs/{job_id}"
 
 
 # ── Requester protocols (avoid importing the client → no circular import) ─────
@@ -45,14 +51,15 @@ class _AsyncRequester(Protocol):
 
 
 # ── Shared parsing ────────────────────────────────────────────────────────────
-def _usage(env: dict[str, Any]) -> Optional[Usage]:
-    raw = env.get("usage")
-    return Usage.model_validate(raw) if isinstance(raw, dict) else None
-
-
 def _parse_transcript(env: dict[str, Any]) -> Transcript:
-    model = Transcript.model_validate(env.get("data", {}))
+    # ``data`` is null while an async transcription job is still processing, so
+    # fall back to {} rather than letting None reach the validator.
+    model = Transcript.model_validate(env.get("data") or {})
     model.usage = _usage(env)
+    for field in ("status", "job_id", "poll_url"):
+        value = env.get(field)
+        if isinstance(value, str):
+            setattr(model, field, value)
     return model
 
 
@@ -85,7 +92,14 @@ class Transcripts:
         self._c = client
 
     def video(self, video: str, *, idempotency_key: Optional[str] = None) -> Transcript:
-        """Fetch a single video's transcript (text + timestamped segments)."""
+        """Fetch a single transcript (text + timestamped segments).
+
+        ``video`` is a YouTube, TikTok or Instagram URL, a direct media file
+        URL, or a bare YouTube ID. When the source has no captions the API
+        transcribes its audio and answers with a job: the returned
+        :class:`~transcriptfetch.Transcript` then has ``status ==
+        "processing"`` and a ``job_id`` to pass to :meth:`job`.
+        """
         env = self._c._request(
             "POST", _VIDEO, body={"video": video}, idempotent=True, idempotency_key=idempotency_key
         )
@@ -99,7 +113,7 @@ class Transcripts:
         cursor: Optional[str] = None,
         idempotency_key: Optional[str] = None,
     ) -> VideoList:
-        """List a channel's videos (metadata only), one page."""
+        """List a YouTube channel's videos (metadata only), one page."""
         env = self._c._request(
             "POST", _CHANNEL, body=_list_body("channel", channel, limit, cursor),
             idempotent=True, idempotency_key=idempotency_key,
@@ -114,7 +128,7 @@ class Transcripts:
         cursor: Optional[str] = None,
         idempotency_key: Optional[str] = None,
     ) -> VideoList:
-        """List a playlist's videos (metadata only), one page."""
+        """List a YouTube playlist's videos (metadata only), one page."""
         env = self._c._request(
             "POST", _PLAYLIST, body=_list_body("playlist", playlist, limit, cursor),
             idempotent=True, idempotency_key=idempotency_key,
@@ -139,12 +153,23 @@ class Transcripts:
     def batch(
         self, video_ids: Iterable[str], *, idempotency_key: Optional[str] = None
     ) -> BatchResponse:
-        """Fetch up to 50 transcripts in one call."""
+        """Fetch up to 50 transcripts in one call (same inputs as :meth:`video`)."""
         env = self._c._request(
             "POST", _BATCH, body={"videoIds": list(video_ids)},
             idempotent=True, idempotency_key=idempotency_key,
         )
         return _parse_batch(env)
+
+    def job(self, job_id: str) -> Transcript:
+        """Poll an audio-transcription job started by :meth:`video`.
+
+        Free to call. Returns a transcript whose ``status`` is ``"processing"``
+        (``text`` still empty) or ``"completed"``. A job that failed comes back
+        as an error envelope, so it raises :class:`~transcriptfetch.APIError`
+        rather than returning a transcript you would have to inspect.
+        """
+        env = self._c._request("GET", _JOB.format(job_id=job_id))
+        return _parse_transcript(env)
 
     # Auto-paginating iterators ------------------------------------------------
     def iter_channel(self, channel: str, *, limit: Optional[int] = None) -> Iterator[Any]:
@@ -172,6 +197,7 @@ class AsyncTranscripts:
         self._c = client
 
     async def video(self, video: str, *, idempotency_key: Optional[str] = None) -> Transcript:
+        """Fetch a single transcript. See :meth:`Transcripts.video`."""
         env = await self._c._request(
             "POST", _VIDEO, body={"video": video}, idempotent=True, idempotency_key=idempotency_key
         )
@@ -227,6 +253,11 @@ class AsyncTranscripts:
             idempotent=True, idempotency_key=idempotency_key,
         )
         return _parse_batch(env)
+
+    async def job(self, job_id: str) -> Transcript:
+        """Poll an audio-transcription job. See :meth:`Transcripts.job`."""
+        env = await self._c._request("GET", _JOB.format(job_id=job_id))
+        return _parse_transcript(env)
 
     async def iter_channel(
         self, channel: str, *, limit: Optional[int] = None
