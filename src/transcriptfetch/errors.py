@@ -77,7 +77,11 @@ class RateLimitError(APIError):
 
 
 class UpstreamUnavailableError(APIError):
-    """502: the upstream transcript service was unreachable. Safe to retry."""
+    """502/503: the upstream platform blocked or was unreachable. Safe to retry.
+
+    Upstream platform blocks answer 503 with code ``upstream_error`` — never
+    429, which is reserved for per-key rate limits (:class:`RateLimitError`).
+    """
 
 
 class InternalServerError(APIError):
@@ -91,6 +95,7 @@ _CODE_TO_EXC: dict[str, type[APIError]] = {
     "idempotency_conflict": IdempotencyConflictError,
     "rate_limited": RateLimitError,
     "upstream_unavailable": UpstreamUnavailableError,
+    "upstream_error": UpstreamUnavailableError,
     "internal_error": InternalServerError,
 }
 

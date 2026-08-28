@@ -25,11 +25,18 @@ class Usage(_Model):
 
 
 class Segment(_Model):
-    """A single timestamped caption cue."""
+    """A single timestamped caption cue.
+
+    ``speaker`` is set only on podcast episodes transcribed from audio, where
+    best-effort diarization labels each segment with a small integer (0, 1, …)
+    identifying who is talking. The ids are hints from voice separation, not
+    named identification, and non-podcast sources never carry them.
+    """
 
     start: float = 0.0
     duration: float = 0.0
     text: str = ""
+    speaker: Optional[int] = None
 
 
 class Podcast(_Model):
@@ -110,14 +117,34 @@ class VideoList(_Model):
 
 
 class BatchResult(_Model):
-    """One video's result inside a batch response."""
+    """One video's result inside a batch response.
+
+    Entries with no caption track are transcribed from audio by default (batch
+    ``mode="auto"``): those come back with ``outcome == "processing"`` and a
+    ``job_id``, cost nothing on that call, and are charged on delivery at the
+    audio rate. Either re-send the same batch once the jobs have had time to
+    finish (the text then comes back normally) or poll ``job_id`` via
+    ``transcripts.job()``. Send ``mode="captions"`` to keep the old behaviour,
+    where captionless entries fail as ``no_transcript`` instead.
+    """
 
     video_id: str = ""
-    outcome: Optional[str] = None  # ok | no_transcript | blocked | error | null
+    outcome: Optional[str] = None  # ok | processing | no_transcript | blocked | error | null
     title: Optional[str] = None
     text: Optional[str] = None
     segments: Optional[List[Segment]] = None
-    cached: bool = False
+    cached: Optional[bool] = None
+    """Deprecated. The API no longer reports cache hits on batch results and
+    omits the key entirely, so this is ``None`` on current responses; it is kept
+    (rather than removed) so 1.0.x code reading it keeps importing and running.
+    Do not branch on it."""
+    job_id: Optional[str] = None
+    """Set when ``outcome == "processing"``: the audio-transcription job that
+    will deliver this entry. Poll it with ``transcripts.job(job_id)``, or just
+    re-send the same batch later."""
+    status: Optional[str] = None
+    """Job state for an audio-transcription entry (``"processing"`` until the
+    job delivers). ``None`` for ordinary caption results."""
     bytes: int = 0
 
 

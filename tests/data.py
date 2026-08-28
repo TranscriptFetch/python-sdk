@@ -25,12 +25,20 @@ BATCH_ENV: dict[str, Any] = {
     "data": {
         "kind": "transcript_batch",
         "results": [
-            {"video_id": "a", "outcome": "ok", "text": "one", "cached": False, "bytes": 10},
+            # The API no longer includes a "cached" key on batch results.
+            {"video_id": "a", "outcome": "ok", "text": "one", "bytes": 10},
             {
                 "video_id": "b",
                 "outcome": "no_transcript",
                 "segments": None,
-                "cached": True,
+                "bytes": 0,
+            },
+            # mode="auto" (default): a captionless entry escalates to audio.
+            {
+                "video_id": "c",
+                "outcome": "processing",
+                "status": "processing",
+                "job_id": "asr_batch_1",
                 "bytes": 0,
             },
         ],

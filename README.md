@@ -31,7 +31,7 @@ Get an API key (100 free credits) at <https://transcriptfetch.com/app>. One cred
 
 ```python
 tf.transcripts.video(video)                        # single transcript (text + segments)
-tf.transcripts.batch(video_ids)                    # up to 50 transcripts in one call
+tf.transcripts.batch(video_ids, mode=)             # up to 50 transcripts in one call
 tf.transcripts.channel(channel, limit=, cursor=)   # a YouTube channel's videos (metadata)
 tf.transcripts.playlist(playlist, limit=, cursor=) # a YouTube playlist's videos
 tf.transcripts.search(query, limit=, cursor=)      # search YouTube
@@ -62,6 +62,17 @@ A transcript resolved from a podcast link also carries a `podcast` block, so the
 t = tf.transcripts.video("https://podcasts.apple.com/us/podcast/…")
 print(t.platform)          # "podcast"
 print(t.podcast.show, "-", t.podcast.episode)
+```
+
+Podcast transcriptions include best-effort speaker diarization: each segment may carry a `speaker` integer (0, 1, …) identifying who is talking. The ids are hints from voice separation, not named identification, and non-podcast sources never carry them.
+
+Batch works the same way by default (`mode="auto"`): entries with no caption track are transcribed from audio, come back with `outcome == "processing"` and a `job_id`, cost nothing on that call, and are charged on delivery at the audio rate. Re-send the same batch once the jobs have had time to finish and the text comes back normally — or poll each `job_id` with `tf.transcripts.job()`. Pass `mode="captions"` to read existing caption tracks only, in which case a captionless video fails as `no_transcript` (the old behaviour):
+
+```python
+res = tf.transcripts.batch(ids)                    # captionless entries -> "processing" + job_id
+pending = [r.job_id for r in res.results if r.outcome == "processing"]
+
+res = tf.transcripts.batch(ids, mode="captions")   # captions only, no audio fallback
 ```
 
 ## Pagination

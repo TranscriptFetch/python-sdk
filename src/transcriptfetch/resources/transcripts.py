@@ -158,11 +158,33 @@ class Transcripts:
         return _parse_videolist(env)
 
     def batch(
-        self, video_ids: Iterable[str], *, idempotency_key: Optional[str] = None
+        self,
+        video_ids: Iterable[str],
+        *,
+        mode: Optional[str] = None,
+        idempotency_key: Optional[str] = None,
     ) -> BatchResponse:
-        """Fetch up to 50 transcripts in one call (same inputs as :meth:`video`)."""
+        """Fetch up to 50 transcripts in one call (same inputs as :meth:`video`).
+
+        ``mode`` controls where each entry's text may come from:
+
+        - ``"auto"`` (the default) reads captions and transcribes the audio
+          when there are none. Captionless entries come back with ``outcome ==
+          "processing"`` and a ``job_id``, cost nothing on this call, and are
+          charged on delivery at the audio rate. Re-send the same batch once
+          they have finished and the text is returned normally — or poll each
+          ``job_id`` via :meth:`job`.
+        - ``"captions"`` reads an existing caption track only, so a captionless
+          video fails as ``no_transcript`` — the behaviour batch had before
+          audio fallback existed.
+
+        (``"audio"`` is not accepted on batch.)
+        """
+        body: dict[str, Any] = {"videoIds": list(video_ids)}
+        if mode is not None:
+            body["mode"] = mode
         env = self._c._request(
-            "POST", _BATCH, body={"videoIds": list(video_ids)},
+            "POST", _BATCH, body=body,
             idempotent=True, idempotency_key=idempotency_key,
         )
         return _parse_batch(env)
@@ -253,10 +275,21 @@ class AsyncTranscripts:
         return _parse_videolist(env)
 
     async def batch(
-        self, video_ids: Iterable[str], *, idempotency_key: Optional[str] = None
+        self,
+        video_ids: Iterable[str],
+        *,
+        mode: Optional[str] = None,
+        idempotency_key: Optional[str] = None,
     ) -> BatchResponse:
+        """Fetch up to 50 transcripts in one call. See :meth:`Transcripts.batch`
+        for the ``mode`` semantics (``"auto"`` transcribes captionless entries
+        from audio and returns them as ``outcome == "processing"`` jobs;
+        ``"captions"`` keeps the old captions-only behaviour)."""
+        body: dict[str, Any] = {"videoIds": list(video_ids)}
+        if mode is not None:
+            body["mode"] = mode
         env = await self._c._request(
-            "POST", _BATCH, body={"videoIds": list(video_ids)},
+            "POST", _BATCH, body=body,
             idempotent=True, idempotency_key=idempotency_key,
         )
         return _parse_batch(env)

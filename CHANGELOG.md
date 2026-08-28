@@ -3,6 +3,31 @@
 All notable changes to this project are documented here. This project adheres to
 [Semantic Versioning](https://semver.org).
 
+## [1.0.2] - 2026-08-28
+
+Batch grew audio fallback on the API side; this release types it.
+
+- `transcripts.batch()` (sync + async) gains `mode="auto" | "captions"`.
+  `"auto"` (the API default) transcribes captionless entries from audio: those
+  come back with `outcome == "processing"` and a `job_id`, cost nothing on that
+  call, and are charged on delivery at the audio rate — re-send the same batch
+  later, or poll the job via `transcripts.job()`. `"captions"` keeps the old
+  behaviour (captionless entries fail as `no_transcript`). `"audio"` is not
+  accepted on batch.
+- `BatchResult` gains `job_id` and `status` for those processing entries.
+- Deprecated: `BatchResult.cached`. The API no longer reports cache hits on
+  batch results (the key is omitted entirely), so the field is now
+  `Optional[bool]` defaulting to `None` instead of a silently-false `bool`.
+  Kept for import/attribute compatibility within 1.x; do not branch on it.
+- `Segment` gains optional `speaker` (int): best-effort diarization label on
+  podcast transcriptions — ids are voice-separation hints, not named
+  identification, and non-podcast sources never carry them.
+- Error mapping: the wire code `upstream_error` (503, upstream platform
+  blocked) now maps to `UpstreamUnavailableError` by code as well as by
+  status. Behaviour is unchanged — 503 already mapped and retried — but the
+  docstring no longer claims 502 only. Per-key rate limits remain 429
+  (`RateLimitError`); upstream blocks are never 429.
+
 ## [1.0.0] - 2026-08-05
 
 First stable release. The published docs promise the SDKs follow semver, and a

@@ -83,10 +83,28 @@ def test_batch() -> None:
         return_value=httpx.Response(200, json=BATCH_ENV)
     )
     with _client() as tf:
-        res = tf.transcripts.batch(["a", "b"])
-    assert [r.video_id for r in res.results] == ["a", "b"]
+        res = tf.transcripts.batch(["a", "b", "c"])
+    assert [r.video_id for r in res.results] == ["a", "b", "c"]
     assert res.results[1].outcome == "no_transcript"
-    assert json.loads(route.calls.last.request.content)["videoIds"] == ["a", "b"]
+    # "cached" is gone from the API; the deprecated field must not invent False.
+    assert res.results[0].cached is None
+    # A captionless entry escalated to audio: processing + a pollable job_id.
+    assert res.results[2].outcome == "processing"
+    assert res.results[2].status == "processing"
+    assert res.results[2].job_id == "asr_batch_1"
+    body = json.loads(route.calls.last.request.content)
+    assert body["videoIds"] == ["a", "b", "c"]
+    assert "mode" not in body  # server default (auto) unless asked for
+
+
+@respx.mock
+def test_batch_mode_captions() -> None:
+    route = respx.post(f"{BASE}/api/v1/transcripts/batch").mock(
+        return_value=httpx.Response(200, json=BATCH_ENV)
+    )
+    with _client() as tf:
+        tf.transcripts.batch(["a", "b", "c"], mode="captions")
+    assert json.loads(route.calls.last.request.content)["mode"] == "captions"
 
 
 @respx.mock
