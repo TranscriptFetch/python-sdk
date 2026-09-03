@@ -7,7 +7,7 @@ still accepting the wire names on input.
 
 from __future__ import annotations
 
-from typing import Any, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -71,15 +71,18 @@ class Transcript(_Model):
     video_id: str = ""
     platform: Optional[str] = None  # youtube | tiktok | instagram | podcast | file
     title: Optional[str] = None
+    source: Optional[str] = None  # "captions" | "audio" (AI transcription); None on a 202
     text: Optional[str] = None
     segments: List[Segment] = Field(default_factory=list)
     podcast: Optional[Podcast] = None  # set only when the input was a podcast
     usage: Optional[Usage] = None
     # Envelope-level fields, lifted onto the model so an async job round-trips
     # as one object (the API returns them beside ``data``, not inside it).
-    status: Optional[str] = None  # "processing" | "completed", async jobs only
+    status: Optional[str] = None  # "processing" | "completed" | "failed", async jobs only
     job_id: Optional[str] = None
     poll_url: Optional[str] = None
+    error: Optional["ApiErrorBlock"] = None
+    """Why a job failed. Set only when ``status == "failed"``."""
 
     @field_validator("segments", mode="before")
     @classmethod
@@ -116,35 +119,45 @@ class VideoList(_Model):
     usage: Optional[Usage] = None
 
 
+class ApiErrorBlock(_Model):
+    """The API's error block, as it appears on a failed batch entry or a
+    failed job. Request-level failures raise :class:`APIError` with the same
+    fields. ``number``'s thousands digit is the family; 5xxx means retry."""
+
+    code: str = ""
+    number: Optional[int] = None
+    message: str = ""
+    docs: Optional[str] = None
+    retry_with: Optional[Dict[str, Any]] = None
+    """The request change that would succeed, e.g. ``{"mode": "audio"}``."""
+    details: Optional[Dict[str, Any]] = None
+
+
 class BatchResult(_Model):
     """One video's result inside a batch response.
 
-    Entries with no caption track are transcribed from audio by default (batch
-    ``mode="auto"``): those come back with ``outcome == "processing"`` and a
-    ``job_id``, cost nothing on that call, and are charged on delivery at the
-    audio rate. Either re-send the same batch once the jobs have had time to
-    finish (the text then comes back normally) or poll ``job_id`` via
-    ``transcripts.job()``. Send ``mode="captions"`` to keep the old behaviour,
-    where captionless entries fail as ``no_transcript`` instead.
+    Exactly three outcomes. ``"ok"`` carries the transcript (``text``,
+    ``segments``, ``source``). ``"processing"`` carries the audio-transcription
+    job started for a captionless entry (batch ``mode="auto"``): it costs
+    nothing on that call and is charged on delivery at the audio rate; either
+    re-send the same batch once the jobs have had time to finish or poll
+    ``job_id`` via ``transcripts.job()``. ``"error"`` carries the same error
+    block a request-level failure raises, in ``error``. Send
+    ``mode="captions"`` to have captionless entries fail as ``"error"`` with
+    code ``no_captions`` (and ``error.retry_with`` naming the audio mode).
     """
 
     video_id: str = ""
-    outcome: Optional[str] = None  # ok | processing | no_transcript | blocked | error | null
+    outcome: str = "error"  # ok | processing | error
+    error: Optional[ApiErrorBlock] = None
     title: Optional[str] = None
+    source: Optional[str] = None  # "captions" | "audio" on outcome "ok"
     text: Optional[str] = None
     segments: Optional[List[Segment]] = None
-    cached: Optional[bool] = None
-    """Deprecated. The API no longer reports cache hits on batch results and
-    omits the key entirely, so this is ``None`` on current responses; it is kept
-    (rather than removed) so 1.0.x code reading it keeps importing and running.
-    Do not branch on it."""
     job_id: Optional[str] = None
     """Set when ``outcome == "processing"``: the audio-transcription job that
-    will deliver this entry. Poll it with ``transcripts.job(job_id)``, or just
-    re-send the same batch later."""
-    status: Optional[str] = None
-    """Job state for an audio-transcription entry (``"processing"`` until the
-    job delivers). ``None`` for ordinary caption results."""
+    will deliver this entry."""
+    poll_url: Optional[str] = None
     bytes: int = 0
 
 

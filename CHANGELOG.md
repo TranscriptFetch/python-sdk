@@ -3,6 +3,33 @@
 All notable changes to this project are documented here. This project adheres to
 [Semantic Versioning](https://semver.org).
 
+## [2.0.0] - 2026-09-03
+
+Targets API v2 (`/api/v2`). v1 is deprecated server-side with a twelve-month
+window, so 1.x keeps working until 2027-09-03; upgrade before then.
+
+### Breaking
+
+- Every request goes to `/api/v2/...`.
+- `APIError` gains `number` (stable integer code; the thousands digit is the
+  family, 5xxx = retry), `docs`, `retry_with`, `details`, and a `retryable`
+  property. New subclasses: `NotFoundError` (404), `BatchTooLargeError` (400,
+  `details["max"]`), `UnprocessableInputError` (422, the whole 3xxx/4xxx
+  family: unsupported platform, no captions, private, live, and so on;
+  `retry_with` is set when a different request would work, e.g.
+  `{"mode": "audio"}`).
+- `BatchResult`: `outcome` is exactly `"ok" | "processing" | "error"`; the
+  deprecated `cached` and `status` fields are gone; failed entries carry
+  `error` (an `ApiErrorBlock`, the same shape a request-level error raises);
+  `source` and `poll_url` added.
+- `Transcript.error` (an `ApiErrorBlock`) is set on a failed job polled via
+  `transcripts.job()`.
+
+### Added
+
+- `Transcript.source`: `"captions"` or `"audio"`, where the words came from.
+- `ApiErrorBlock` model.
+
 ## [1.0.2] - 2026-08-28
 
 Batch grew audio fallback on the API side; this release types it.

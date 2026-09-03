@@ -12,6 +12,7 @@ from transcriptfetch import (
     InternalServerError,
     InvalidRequestError,
     RateLimitError,
+    UnprocessableInputError,
     TranscriptFetch,
     UpstreamUnavailableError,
 )
@@ -35,7 +36,7 @@ def _client(max_retries: int = 0) -> TranscriptFetch:
 )
 @respx.mock
 def test_error_code_maps_to_exception(status: int, code: str, exc: type[APIError]) -> None:
-    respx.post(f"{BASE}/api/v1/transcripts/video").mock(
+    respx.post(f"{BASE}/api/v2/transcripts/video").mock(
         return_value=httpx.Response(status, json=error_env(code))
     )
     with _client() as tf, pytest.raises(exc) as info:
@@ -48,7 +49,7 @@ def test_error_code_maps_to_exception(status: int, code: str, exc: type[APIError
 @respx.mock
 def test_invalid_request_carries_issues() -> None:
     issues = [{"path": "video", "message": "required"}]
-    respx.post(f"{BASE}/api/v1/transcripts/video").mock(
+    respx.post(f"{BASE}/api/v2/transcripts/video").mock(
         return_value=httpx.Response(400, json=error_env("invalid_request", "bad", issues))
     )
     with _client() as tf, pytest.raises(InvalidRequestError) as info:
@@ -58,7 +59,7 @@ def test_invalid_request_carries_issues() -> None:
 
 @respx.mock
 def test_rate_limit_exposes_retry_after() -> None:
-    respx.post(f"{BASE}/api/v1/transcripts/video").mock(
+    respx.post(f"{BASE}/api/v2/transcripts/video").mock(
         return_value=httpx.Response(
             429, headers={"retry-after": "2"}, json=error_env("rate_limited")
         )
@@ -73,17 +74,47 @@ def test_failed_job_raises_rather_than_returning_a_transcript() -> None:
     # A failed job is HTTP 200 with ok:false, so the envelope parser decides it
     # is an error. Assert that, because the alternative would be a Transcript
     # that silently has no text.
-    respx.get(f"{BASE}/api/v1/transcripts/jobs/asr_1").mock(
-        return_value=httpx.Response(200, json=error_env("asr_failed", "Transcription failed."))
+    respx.get(f"{BASE}/api/v2/transcripts/jobs/asr_1").mock(
+        return_value=httpx.Response(200, json=error_env("no_speech", "No speech was detected."))
     )
-    with _client() as tf, pytest.raises(APIError) as info:
+    with _client() as tf, pytest.raises(UnprocessableInputError) as info:
         tf.transcripts.job("asr_1")
-    assert info.value.code == "asr_failed"
+    assert info.value.code == "no_speech"
+    assert info.value.number == 4105
+    assert info.value.docs == "https://transcriptfetch.com/docs/errors/no_speech"
+    assert info.value.retryable is False
+
+
+@respx.mock
+def test_unprocessable_input_exposes_retry_with() -> None:
+    # 4xxx content failures map by family even when the code is not listed,
+    # and carry the request change that would succeed.
+    body = error_env("no_captions", "No caption track is available for this video.")
+    body["error"]["retry_with"] = {"mode": "audio"}
+    respx.post(f"{BASE}/api/v2/transcripts/video").mock(
+        return_value=httpx.Response(422, json=body)
+    )
+    with _client() as tf, pytest.raises(UnprocessableInputError) as info:
+        tf.transcripts.video("x")
+    assert info.value.number == 4103
+    assert info.value.retry_with == {"mode": "audio"}
+    assert info.value.retryable is False
+
+
+@respx.mock
+def test_transient_family_is_retryable() -> None:
+    respx.post(f"{BASE}/api/v2/transcripts/video").mock(
+        return_value=httpx.Response(503, json=error_env("upstream_error", "The upstream fetch failed."))
+    )
+    with _client() as tf, pytest.raises(UpstreamUnavailableError) as info:
+        tf.transcripts.video("x")
+    assert info.value.number == 5001
+    assert info.value.retryable is True
 
 
 @respx.mock
 def test_retries_then_succeeds() -> None:
-    respx.post(f"{BASE}/api/v1/transcripts/video").mock(
+    respx.post(f"{BASE}/api/v2/transcripts/video").mock(
         side_effect=[
             httpx.Response(429, headers={"retry-after": "0"}, json=error_env("rate_limited")),
             httpx.Response(200, json=VIDEO_ENV),

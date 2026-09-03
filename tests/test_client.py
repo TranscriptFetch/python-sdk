@@ -28,7 +28,7 @@ def _client() -> TranscriptFetch:
 
 @respx.mock
 def test_video_parses_and_sends_headers() -> None:
-    route = respx.post(f"{BASE}/api/v1/transcripts/video").mock(
+    route = respx.post(f"{BASE}/api/v2/transcripts/video").mock(
         return_value=httpx.Response(200, json=VIDEO_ENV)
     )
     with _client() as tf:
@@ -47,7 +47,7 @@ def test_video_parses_and_sends_headers() -> None:
 
 @respx.mock
 def test_channel_auto_pagination() -> None:
-    respx.post(f"{BASE}/api/v1/transcripts/channel").mock(
+    respx.post(f"{BASE}/api/v2/transcripts/channel").mock(
         side_effect=[
             httpx.Response(200, json=video_list([{"videoId": "a", "title": "A"}], "cur1")),
             httpx.Response(200, json=video_list([{"videoId": "b", "title": "B"}], None)),
@@ -60,7 +60,7 @@ def test_channel_auto_pagination() -> None:
 
 @respx.mock
 def test_video_list_camelcase_aliases() -> None:
-    respx.post(f"{BASE}/api/v1/transcripts/search").mock(
+    respx.post(f"{BASE}/api/v2/transcripts/search").mock(
         return_value=httpx.Response(
             200,
             json=video_list(
@@ -79,19 +79,23 @@ def test_video_list_camelcase_aliases() -> None:
 
 @respx.mock
 def test_batch() -> None:
-    route = respx.post(f"{BASE}/api/v1/transcripts/batch").mock(
+    route = respx.post(f"{BASE}/api/v2/transcripts/batch").mock(
         return_value=httpx.Response(200, json=BATCH_ENV)
     )
     with _client() as tf:
         res = tf.transcripts.batch(["a", "b", "c"])
     assert [r.video_id for r in res.results] == ["a", "b", "c"]
-    assert res.results[1].outcome == "no_transcript"
-    # "cached" is gone from the API; the deprecated field must not invent False.
-    assert res.results[0].cached is None
+    assert res.results[0].outcome == "ok"
+    assert res.results[0].source == "captions"
+    # A failed entry carries the standard error block.
+    assert res.results[1].outcome == "error"
+    assert res.results[1].error is not None
+    assert res.results[1].error.code == "private"
+    assert res.results[1].error.number == 4001
     # A captionless entry escalated to audio: processing + a pollable job_id.
     assert res.results[2].outcome == "processing"
-    assert res.results[2].status == "processing"
     assert res.results[2].job_id == "asr_batch_1"
+    assert res.results[2].poll_url == "/api/v2/transcripts/jobs/asr_batch_1"
     body = json.loads(route.calls.last.request.content)
     assert body["videoIds"] == ["a", "b", "c"]
     assert "mode" not in body  # server default (auto) unless asked for
@@ -99,7 +103,7 @@ def test_batch() -> None:
 
 @respx.mock
 def test_batch_mode_captions() -> None:
-    route = respx.post(f"{BASE}/api/v1/transcripts/batch").mock(
+    route = respx.post(f"{BASE}/api/v2/transcripts/batch").mock(
         return_value=httpx.Response(200, json=BATCH_ENV)
     )
     with _client() as tf:
@@ -109,7 +113,7 @@ def test_batch_mode_captions() -> None:
 
 @respx.mock
 def test_health_is_unauthenticated() -> None:
-    route = respx.get(f"{BASE}/api/v1/health").mock(return_value=httpx.Response(200, json=HEALTH))
+    route = respx.get(f"{BASE}/api/v2/health").mock(return_value=httpx.Response(200, json=HEALTH))
     with _client() as tf:
         h = tf.health()
     assert h["status"] == "ok"
@@ -118,7 +122,7 @@ def test_health_is_unauthenticated() -> None:
 
 @respx.mock
 def test_me_returns_balance() -> None:
-    route = respx.get(f"{BASE}/api/v1/me").mock(return_value=httpx.Response(200, json=ME_ENV))
+    route = respx.get(f"{BASE}/api/v2/me").mock(return_value=httpx.Response(200, json=ME_ENV))
     with _client() as tf:
         me = tf.me()
     assert me.user_id == "user_1"
@@ -131,10 +135,10 @@ def test_me_returns_balance() -> None:
 def test_video_without_captions_returns_pollable_job() -> None:
     # A 202 carries kind="transcript_job" and no transcript body; it must not
     # blow up parsing, since polling is the documented path from here.
-    respx.post(f"{BASE}/api/v1/transcripts/video").mock(
+    respx.post(f"{BASE}/api/v2/transcripts/video").mock(
         return_value=httpx.Response(202, json=JOB_ACCEPTED_ENV)
     )
-    respx.get(f"{BASE}/api/v1/transcripts/jobs/asr_1").mock(
+    respx.get(f"{BASE}/api/v2/transcripts/jobs/asr_1").mock(
         side_effect=[
             httpx.Response(200, json=JOB_PROCESSING_ENV),
             httpx.Response(200, json=JOB_DONE_ENV),
@@ -144,7 +148,7 @@ def test_video_without_captions_returns_pollable_job() -> None:
         started = tf.transcripts.video("https://www.tiktok.com/@u/video/7137723462233555205")
         assert started.status == "processing"
         assert started.job_id == "asr_1"
-        assert started.poll_url == "/api/v1/transcripts/jobs/asr_1"
+        assert started.poll_url == "/api/v2/transcripts/jobs/asr_1"
         assert started.text is None
 
         assert tf.transcripts.job("asr_1").status == "processing"
@@ -157,10 +161,10 @@ def test_video_without_captions_returns_pollable_job() -> None:
 
 @respx.mock
 def test_podcast_link_returns_show_and_episode() -> None:
-    respx.post(f"{BASE}/api/v1/transcripts/video").mock(
+    respx.post(f"{BASE}/api/v2/transcripts/video").mock(
         return_value=httpx.Response(202, json=PODCAST_ACCEPTED_ENV)
     )
-    respx.get(f"{BASE}/api/v1/transcripts/jobs/asr_2").mock(
+    respx.get(f"{BASE}/api/v2/transcripts/jobs/asr_2").mock(
         return_value=httpx.Response(200, json=PODCAST_DONE_ENV)
     )
     with _client() as tf:
@@ -182,7 +186,7 @@ def test_podcast_link_returns_show_and_episode() -> None:
 
 @respx.mock
 def test_non_podcast_transcript_has_no_podcast_block() -> None:
-    respx.post(f"{BASE}/api/v1/transcripts/video").mock(
+    respx.post(f"{BASE}/api/v2/transcripts/video").mock(
         return_value=httpx.Response(200, json=VIDEO_ENV)
     )
     with _client() as tf:

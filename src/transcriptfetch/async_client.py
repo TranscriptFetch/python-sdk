@@ -82,14 +82,14 @@ class AsyncTranscriptFetch:
 
     async def me(self) -> Account:
         """Validate the API key and read the account's credit balance. Free."""
-        env = await self._request("GET", "/api/v1/me")
+        env = await self._request("GET", "/api/v2/me")
         account = Account.model_validate(env.get("data") or {})
         account.usage = parse_usage(env)
         return account
 
     async def health(self) -> dict[str, Any]:
         """Unauthenticated liveness probe."""
-        return await self._request("GET", "/api/v1/health", auth=False)
+        return await self._request("GET", "/api/v2/health", auth=False)
 
     async def close(self) -> None:
         if self._owns_http:

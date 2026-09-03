@@ -9,7 +9,7 @@ from transcriptfetch import AsyncTranscriptFetch
 
 @respx.mock
 async def test_async_video() -> None:
-    respx.post(f"{BASE}/api/v1/transcripts/video").mock(
+    respx.post(f"{BASE}/api/v2/transcripts/video").mock(
         return_value=httpx.Response(200, json=VIDEO_ENV)
     )
     async with AsyncTranscriptFetch(api_key="k", base_url=BASE, max_retries=0) as tf:
@@ -20,7 +20,7 @@ async def test_async_video() -> None:
 
 @respx.mock
 async def test_async_auto_pagination() -> None:
-    respx.post(f"{BASE}/api/v1/transcripts/playlist").mock(
+    respx.post(f"{BASE}/api/v2/transcripts/playlist").mock(
         side_effect=[
             httpx.Response(200, json=video_list([{"videoId": "a"}], "c1")),
             httpx.Response(200, json=video_list([{"videoId": "b"}], None)),
@@ -33,7 +33,7 @@ async def test_async_auto_pagination() -> None:
 
 @respx.mock
 async def test_async_me() -> None:
-    respx.get(f"{BASE}/api/v1/me").mock(return_value=httpx.Response(200, json=ME_ENV))
+    respx.get(f"{BASE}/api/v2/me").mock(return_value=httpx.Response(200, json=ME_ENV))
     async with AsyncTranscriptFetch(api_key="k", base_url=BASE, max_retries=0) as tf:
         me = await tf.me()
     assert me.credits == 250
@@ -41,7 +41,7 @@ async def test_async_me() -> None:
 
 @respx.mock
 async def test_async_job_poll() -> None:
-    respx.get(f"{BASE}/api/v1/transcripts/jobs/asr_1").mock(
+    respx.get(f"{BASE}/api/v2/transcripts/jobs/asr_1").mock(
         return_value=httpx.Response(200, json=JOB_DONE_ENV)
     )
     async with AsyncTranscriptFetch(api_key="k", base_url=BASE, max_retries=0) as tf:
@@ -52,7 +52,7 @@ async def test_async_job_poll() -> None:
 
 @respx.mock
 async def test_async_podcast_job() -> None:
-    respx.get(f"{BASE}/api/v1/transcripts/jobs/asr_2").mock(
+    respx.get(f"{BASE}/api/v2/transcripts/jobs/asr_2").mock(
         return_value=httpx.Response(200, json=PODCAST_DONE_ENV)
     )
     async with AsyncTranscriptFetch(api_key="k", base_url=BASE, max_retries=0) as tf:

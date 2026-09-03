@@ -13,15 +13,15 @@ from __future__ import annotations
 from typing import Any, AsyncIterator, Iterable, Iterator, Optional, Protocol
 
 from .._transport import parse_usage as _usage
-from ..models import BatchResponse, Transcript, VideoList
+from ..models import ApiErrorBlock, BatchResponse, Transcript, VideoList
 
 # ── Paths ────────────────────────────────────────────────────────────────────
-_VIDEO = "/api/v1/transcripts/video"
-_CHANNEL = "/api/v1/transcripts/channel"
-_PLAYLIST = "/api/v1/transcripts/playlist"
-_SEARCH = "/api/v1/transcripts/search"
-_BATCH = "/api/v1/transcripts/batch"
-_JOB = "/api/v1/transcripts/jobs/{job_id}"
+_VIDEO = "/api/v2/transcripts/video"
+_CHANNEL = "/api/v2/transcripts/channel"
+_PLAYLIST = "/api/v2/transcripts/playlist"
+_SEARCH = "/api/v2/transcripts/search"
+_BATCH = "/api/v2/transcripts/batch"
+_JOB = "/api/v2/transcripts/jobs/{job_id}"
 
 
 # ── Requester protocols (avoid importing the client → no circular import) ─────
@@ -61,6 +61,10 @@ def _parse_transcript(env: dict[str, Any]) -> Transcript:
         value = env.get(field)
         if isinstance(value, str):
             setattr(model, field, value)
+    # A failed job answers 200 with ok:false and the error block beside data.
+    raw_error = env.get("error")
+    if isinstance(raw_error, dict):
+        model.error = ApiErrorBlock.model_validate(raw_error)
     return model
 
 

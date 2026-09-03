@@ -79,14 +79,14 @@ class TranscriptFetch:
 
     def me(self) -> Account:
         """Validate the API key and read the account's credit balance. Free."""
-        env = self._request("GET", "/api/v1/me")
+        env = self._request("GET", "/api/v2/me")
         account = Account.model_validate(env.get("data") or {})
         account.usage = parse_usage(env)
         return account
 
     def health(self) -> dict[str, Any]:
         """Unauthenticated liveness probe."""
-        return self._request("GET", "/api/v1/health", auth=False)
+        return self._request("GET", "/api/v2/health", auth=False)
 
     def close(self) -> None:
         if self._owns_http:

@@ -25,21 +25,25 @@ BATCH_ENV: dict[str, Any] = {
     "data": {
         "kind": "transcript_batch",
         "results": [
-            # The API no longer includes a "cached" key on batch results.
-            {"video_id": "a", "outcome": "ok", "text": "one", "bytes": 10},
+            {"video_id": "a", "outcome": "ok", "source": "captions", "text": "one", "bytes": 10},
+            # v2: a failed entry carries the same error block a request-level
+            # failure does, and nothing else.
             {
                 "video_id": "b",
-                "outcome": "no_transcript",
-                "segments": None,
-                "bytes": 0,
+                "outcome": "error",
+                "error": {
+                    "code": "private",
+                    "number": 4001,
+                    "message": "The video is private.",
+                    "docs": "https://transcriptfetch.com/docs/errors/private",
+                },
             },
             # mode="auto" (default): a captionless entry escalates to audio.
             {
                 "video_id": "c",
                 "outcome": "processing",
-                "status": "processing",
                 "job_id": "asr_batch_1",
-                "bytes": 0,
+                "poll_url": "/api/v2/transcripts/jobs/asr_batch_1",
             },
         ],
     },
@@ -59,7 +63,7 @@ JOB_ACCEPTED_ENV: dict[str, Any] = {
     "request_id": "req_job",
     "status": "processing",
     "job_id": "asr_1",
-    "poll_url": "/api/v1/transcripts/jobs/asr_1",
+    "poll_url": "/api/v2/transcripts/jobs/asr_1",
     "data": {"kind": "transcript_job", "video_id": "abc", "platform": "tiktok"},
 }
 
@@ -93,7 +97,7 @@ PODCAST_ACCEPTED_ENV: dict[str, Any] = {
     "request_id": "req_pod",
     "status": "processing",
     "job_id": "asr_2",
-    "poll_url": "/api/v1/transcripts/jobs/asr_2",
+    "poll_url": "/api/v2/transcripts/jobs/asr_2",
     "data": {
         "kind": "transcript_job",
         "video_id": "https://feeds.example.com/show.xml",
@@ -151,7 +155,29 @@ def video_list(videos: list[dict[str, Any]], next_cursor: Optional[str]) -> dict
 def error_env(
     code: str, message: str = "err", issues: Optional[list[Any]] = None
 ) -> dict[str, Any]:
-    err: dict[str, Any] = {"code": code, "message": message}
+    # v2 block: code, number, message, docs, plus at most one specific.
+    err: dict[str, Any] = {
+        "code": code,
+        "number": _NUMBERS.get(code, 9001),
+        "message": message,
+        "docs": f"https://transcriptfetch.com/docs/errors/{code}",
+    }
     if issues is not None:
         err["issues"] = issues
     return {"ok": False, "request_id": "req_err", "error": err}
+
+
+_NUMBERS: dict[str, int] = {
+    "invalid_request": 1001,
+    "unauthorized": 1101,
+    "idempotency_conflict": 1201,
+    "not_found": 1301,
+    "insufficient_credits": 2001,
+    "batch_too_large": 2002,
+    "rate_limited": 2101,
+    "no_captions": 4103,
+    "no_speech": 4105,
+    "upstream_error": 5001,
+    "upstream_unavailable": 5101,
+    "internal_error": 9001,
+}
