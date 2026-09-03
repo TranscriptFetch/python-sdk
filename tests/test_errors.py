@@ -12,8 +12,8 @@ from transcriptfetch import (
     InternalServerError,
     InvalidRequestError,
     RateLimitError,
-    UnprocessableInputError,
     TranscriptFetch,
+    UnprocessableInputError,
     UpstreamUnavailableError,
 )
 from transcriptfetch.errors import APIError
@@ -104,7 +104,9 @@ def test_unprocessable_input_exposes_retry_with() -> None:
 @respx.mock
 def test_transient_family_is_retryable() -> None:
     respx.post(f"{BASE}/api/v2/transcripts/video").mock(
-        return_value=httpx.Response(503, json=error_env("upstream_error", "The upstream fetch failed."))
+        return_value=httpx.Response(
+            503, json=error_env("upstream_error", "The upstream fetch failed.")
+        )
     )
     with _client() as tf, pytest.raises(UpstreamUnavailableError) as info:
         tf.transcripts.video("x")
