@@ -99,21 +99,44 @@ class Account(_Model):
     usage: Optional[Usage] = None
 
 
+class VideoStats(_Model):
+    """Engagement counts on a list row, where the source exposes them."""
+
+    plays: Optional[int] = None
+
+
 class Video(_Model):
-    """A video reference from a channel/playlist/search list (metadata only)."""
+    """A video reference from a channel/playlist/search list (metadata only).
+
+    ``url`` is accepted as-is by ``transcripts.video()`` and ``batch()``,
+    whatever the platform. The platform is not repeated per row:
+    ``VideoList.platform`` says it. ``published_at`` is exact for TikTok,
+    Instagram and podcasts and approximate on YouTube, whose listings only
+    say "2 days ago" (exact to the day for recent videos, up to a year off
+    for old ones). ``thumbnail_url`` is always ``None`` on v2: the API stopped
+    sending poster images on 2026-09-08.
+    """
 
     video_id: str = Field(alias="videoId")
+    url: Optional[str] = None
     title: Optional[str] = None
     thumbnail_url: Optional[str] = Field(default=None, alias="thumbnailUrl")
     duration: Optional[float] = None
     channel: Optional[str] = None
+    published_at: Optional[str] = Field(default=None, alias="publishedAt")
+    stats: Optional[VideoStats] = None
 
 
 class VideoList(_Model):
-    """A paginated list of videos (``kind == "video_list"``)."""
+    """A paginated list of videos (``kind == "video_list"``).
+
+    ``platform`` is where the rows came from: the ``platform`` argument on
+    search, the platform detected from the URL on channel and playlist.
+    """
 
     kind: Literal["video_list"] = "video_list"
     source: str = ""
+    platform: Optional[str] = None  # youtube | tiktok | instagram | spotify | apple | rss
     videos: List[Video] = Field(default_factory=list)
     next_cursor: Optional[str] = None
     usage: Optional[Usage] = None

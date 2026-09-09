@@ -3,9 +3,11 @@ job, plus auto-paginating iterators. Sync (:class:`Transcripts`) and async
 (:class:`AsyncTranscripts`) variants share the parsing helpers below.
 
 ``video`` and ``batch`` take any supported source (YouTube, TikTok, Instagram,
-a direct media file URL, or a podcast link). ``channel``, ``playlist`` and
-``search`` are YouTube-only, since no other supported platform exposes those
-concepts.
+a direct media file URL, or a podcast link). ``channel`` and ``playlist`` take
+a YouTube, TikTok, Instagram, Spotify, Apple Podcasts or RSS URL and detect the
+platform from it; ``search`` searches YouTube unless ``platform`` says
+otherwise. Every listed row carries a ``url`` that ``video``/``batch`` accept
+as-is.
 """
 
 from __future__ import annotations
@@ -81,13 +83,19 @@ def _parse_batch(env: dict[str, Any]) -> BatchResponse:
 
 
 def _list_body(
-    key: str, value: str, limit: Optional[int], cursor: Optional[str]
+    key: str,
+    value: str,
+    limit: Optional[int],
+    cursor: Optional[str],
+    platform: Optional[str] = None,
 ) -> dict[str, Any]:
     body: dict[str, Any] = {key: value}
     if limit is not None:
         body["limit"] = limit
     if cursor is not None:
         body["cursor"] = cursor
+    if platform is not None:
+        body["platform"] = platform
     return body
 
 
@@ -126,8 +134,11 @@ class Transcripts:
     ) -> VideoList:
         """List a YouTube channel's videos (metadata only), one page."""
         env = self._c._request(
-            "POST", _CHANNEL, body=_list_body("channel", channel, limit, cursor),
-            idempotent=True, idempotency_key=idempotency_key,
+            "POST",
+            _CHANNEL,
+            body=_list_body("channel", channel, limit, cursor),
+            idempotent=True,
+            idempotency_key=idempotency_key,
         )
         return _parse_videolist(env)
 
@@ -141,8 +152,11 @@ class Transcripts:
     ) -> VideoList:
         """List a YouTube playlist's videos (metadata only), one page."""
         env = self._c._request(
-            "POST", _PLAYLIST, body=_list_body("playlist", playlist, limit, cursor),
-            idempotent=True, idempotency_key=idempotency_key,
+            "POST",
+            _PLAYLIST,
+            body=_list_body("playlist", playlist, limit, cursor),
+            idempotent=True,
+            idempotency_key=idempotency_key,
         )
         return _parse_videolist(env)
 
@@ -150,14 +164,23 @@ class Transcripts:
         self,
         query: str,
         *,
+        platform: Optional[str] = None,
         limit: Optional[int] = None,
         cursor: Optional[str] = None,
         idempotency_key: Optional[str] = None,
     ) -> VideoList:
-        """Search YouTube and return matching videos (metadata only), one page."""
+        """Keyword search, one page of results (metadata only).
+
+        YouTube by default; pass ``platform`` ("tiktok", "instagram",
+        "spotify", "apple" or "rss", the open podcast index) to search
+        elsewhere. Every result's ``url`` is accepted by ``video()`` as-is.
+        """
         env = self._c._request(
-            "POST", _SEARCH, body=_list_body("query", query, limit, cursor),
-            idempotent=True, idempotency_key=idempotency_key,
+            "POST",
+            _SEARCH,
+            body=_list_body("query", query, limit, cursor, platform),
+            idempotent=True,
+            idempotency_key=idempotency_key,
         )
         return _parse_videolist(env)
 
@@ -188,8 +211,11 @@ class Transcripts:
         if mode is not None:
             body["mode"] = mode
         env = self._c._request(
-            "POST", _BATCH, body=body,
-            idempotent=True, idempotency_key=idempotency_key,
+            "POST",
+            _BATCH,
+            body=body,
+            idempotent=True,
+            idempotency_key=idempotency_key,
         )
         return _parse_batch(env)
 
@@ -211,13 +237,15 @@ class Transcripts:
     def iter_playlist(self, playlist: str, *, limit: Optional[int] = None) -> Iterator[Any]:
         return self._iter(self.playlist, playlist, limit)
 
-    def iter_search(self, query: str, *, limit: Optional[int] = None) -> Iterator[Any]:
-        return self._iter(self.search, query, limit)
+    def iter_search(
+        self, query: str, *, platform: Optional[str] = None, limit: Optional[int] = None
+    ) -> Iterator[Any]:
+        return self._iter(self.search, query, limit, platform=platform)
 
-    def _iter(self, method: Any, value: str, limit: Optional[int]) -> Iterator[Any]:
+    def _iter(self, method: Any, value: str, limit: Optional[int], **extra: Any) -> Iterator[Any]:
         cursor: Optional[str] = None
         while True:
-            page: VideoList = method(value, limit=limit, cursor=cursor)
+            page: VideoList = method(value, limit=limit, cursor=cursor, **extra)
             yield from page.videos
             if not page.next_cursor:
                 return
@@ -245,8 +273,11 @@ class AsyncTranscripts:
         idempotency_key: Optional[str] = None,
     ) -> VideoList:
         env = await self._c._request(
-            "POST", _CHANNEL, body=_list_body("channel", channel, limit, cursor),
-            idempotent=True, idempotency_key=idempotency_key,
+            "POST",
+            _CHANNEL,
+            body=_list_body("channel", channel, limit, cursor),
+            idempotent=True,
+            idempotency_key=idempotency_key,
         )
         return _parse_videolist(env)
 
@@ -259,8 +290,11 @@ class AsyncTranscripts:
         idempotency_key: Optional[str] = None,
     ) -> VideoList:
         env = await self._c._request(
-            "POST", _PLAYLIST, body=_list_body("playlist", playlist, limit, cursor),
-            idempotent=True, idempotency_key=idempotency_key,
+            "POST",
+            _PLAYLIST,
+            body=_list_body("playlist", playlist, limit, cursor),
+            idempotent=True,
+            idempotency_key=idempotency_key,
         )
         return _parse_videolist(env)
 
@@ -268,13 +302,17 @@ class AsyncTranscripts:
         self,
         query: str,
         *,
+        platform: Optional[str] = None,
         limit: Optional[int] = None,
         cursor: Optional[str] = None,
         idempotency_key: Optional[str] = None,
     ) -> VideoList:
         env = await self._c._request(
-            "POST", _SEARCH, body=_list_body("query", query, limit, cursor),
-            idempotent=True, idempotency_key=idempotency_key,
+            "POST",
+            _SEARCH,
+            body=_list_body("query", query, limit, cursor, platform),
+            idempotent=True,
+            idempotency_key=idempotency_key,
         )
         return _parse_videolist(env)
 
@@ -293,8 +331,11 @@ class AsyncTranscripts:
         if mode is not None:
             body["mode"] = mode
         env = await self._c._request(
-            "POST", _BATCH, body=body,
-            idempotent=True, idempotency_key=idempotency_key,
+            "POST",
+            _BATCH,
+            body=body,
+            idempotent=True,
+            idempotency_key=idempotency_key,
         )
         return _parse_batch(env)
 
@@ -319,10 +360,12 @@ class AsyncTranscripts:
         async for v in self._iter(self.search, query, limit):
             yield v
 
-    async def _iter(self, method: Any, value: str, limit: Optional[int]) -> AsyncIterator[Any]:
+    async def _iter(
+        self, method: Any, value: str, limit: Optional[int], **extra: Any
+    ) -> AsyncIterator[Any]:
         cursor: Optional[str] = None
         while True:
-            page: VideoList = await method(value, limit=limit, cursor=cursor)
+            page: VideoList = await method(value, limit=limit, cursor=cursor, **extra)
             for v in page.videos:
                 yield v
             if not page.next_cursor:

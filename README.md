@@ -1,8 +1,8 @@
 # TranscriptFetch Python SDK
 
-Official, typed Python client for the [TranscriptFetch](https://transcriptfetch.com) API: fetch transcripts as clean, structured data, plus YouTube channel, playlist and search listings. Sync + async, fully type-hinted.
+Official, typed Python client for the [TranscriptFetch](https://transcriptfetch.com) API: fetch transcripts as clean, structured data, plus channel, playlist and search listings across YouTube, TikTok, Instagram, Spotify, Apple Podcasts and RSS. Sync + async, fully type-hinted.
 
-Transcripts come from **YouTube, TikTok, Instagram, podcasts, or a direct media file URL** (mp3/mp4/wav and friends). A podcast link (a Spotify or Apple Podcasts episode URL, or an RSS feed URL) is resolved to that episode's audio automatically. Channel, playlist and search are YouTube-only, since no other supported platform has those concepts.
+Transcripts come from **YouTube, TikTok, Instagram, podcasts, or a direct media file URL** (mp3/mp4/wav and friends). A podcast link (a Spotify or Apple Podcasts episode URL, or an RSS feed URL) is resolved to that episode's audio automatically. Channel and playlist take a URL from any of those platforms and detect it; search is YouTube by default, or any of them via `platform=`.
 
 ```bash
 pip install transcriptfetch-sdk
@@ -32,15 +32,22 @@ Get an API key (100 free credits) at <https://transcriptfetch.com/app>. One cred
 ```python
 tf.transcripts.video(video)                        # single transcript (text + segments)
 tf.transcripts.batch(video_ids, mode=)             # up to 50 transcripts in one call
-tf.transcripts.channel(channel, limit=, cursor=)   # a YouTube channel's videos (metadata)
-tf.transcripts.playlist(playlist, limit=, cursor=) # a YouTube playlist's videos
-tf.transcripts.search(query, limit=, cursor=)      # search YouTube
+tf.transcripts.channel(channel, limit=, cursor=)   # a channel's or creator's videos (metadata)
+tf.transcripts.playlist(playlist, limit=, cursor=) # a playlist's videos
+tf.transcripts.search(query, platform=, limit=, cursor=)  # keyword search, YouTube by default
 tf.transcripts.job(job_id)                         # poll an audio-transcription job (free)
 tf.me()                                            # validate the key + read the balance (free)
 tf.health()                                        # unauthenticated liveness probe
 ```
 
-`video` and `batch` take a YouTube, TikTok or Instagram URL, a podcast link (Spotify or Apple Podcasts episode, or an RSS feed), a direct media file URL, or a bare YouTube ID. `channel`/`playlist` take a URL, an `@handle`/`PL…` ID, or a raw ID. IDs and URLs are normalized automatically.
+`video` and `batch` take a YouTube, TikTok or Instagram URL, a podcast link (Spotify or Apple Podcasts episode, or an RSS feed), a direct media file URL, or a bare YouTube ID. `channel`/`playlist` take a YouTube, TikTok, Instagram, Spotify, Apple Podcasts or RSS URL (or a YouTube `@handle`/`PL…` ID) and detect the platform from it. `search` takes `platform="youtube" | "tiktok" | "instagram" | "spotify" | "apple" | "rss"` (`rss` is the open podcast index). Every listed row carries a `url` that `video`/`batch` accept as-is, plus `published_at` and `stats.plays` where the source exposes them; the page carries `platform`.
+
+```python
+page = tf.transcripts.search("lofi hip hop", platform="tiktok", limit=10)
+for v in page.videos:
+    print(v.title, v.published_at, v.stats.plays if v.stats else None)
+    t = tf.transcripts.video(v.url)
+```
 
 ## Sources without captions (including every podcast)
 

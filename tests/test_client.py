@@ -60,21 +60,38 @@ def test_channel_auto_pagination() -> None:
 
 @respx.mock
 def test_video_list_camelcase_aliases() -> None:
-    respx.post(f"{BASE}/api/v2/transcripts/search").mock(
+    route = respx.post(f"{BASE}/api/v2/transcripts/search").mock(
         return_value=httpx.Response(
             200,
             json=video_list(
-                [{"videoId": "z", "title": "Z", "thumbnailUrl": "http://t/z.jpg", "channel": "C"}],
+                [
+                    {
+                        "videoId": "z",
+                        "url": "https://www.tiktok.com/@c/video/z",
+                        "title": "Z",
+                        "channel": "C",
+                        "publishedAt": "2026-09-01T00:00:00Z",
+                        "stats": {"plays": 1240000},
+                    }
+                ],
                 None,
+                platform="tiktok",
             ),
         )
     )
     with _client() as tf:
-        page = tf.transcripts.search("hi")
+        page = tf.transcripts.search("hi", platform="tiktok")
+    assert route.calls.last.request.content == b'{"query": "hi", "platform": "tiktok"}' or (
+        json.loads(route.calls.last.request.content) == {"query": "hi", "platform": "tiktok"}
+    )
+    assert page.platform == "tiktok"
     v = page.videos[0]
     assert v.video_id == "z"
-    assert v.thumbnail_url == "http://t/z.jpg"
+    assert v.url == "https://www.tiktok.com/@c/video/z"
+    assert v.thumbnail_url is None
     assert v.channel == "C"
+    assert v.published_at == "2026-09-01T00:00:00Z"
+    assert v.stats is not None and v.stats.plays == 1240000
 
 
 @respx.mock

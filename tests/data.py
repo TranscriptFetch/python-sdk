@@ -138,13 +138,16 @@ HEALTH: dict[str, Any] = {
 }
 
 
-def video_list(videos: list[dict[str, Any]], next_cursor: Optional[str]) -> dict[str, Any]:
+def video_list(
+    videos: list[dict[str, Any]], next_cursor: Optional[str], platform: str = "youtube"
+) -> dict[str, Any]:
     return {
         "ok": True,
         "request_id": "req_list",
         "data": {
             "kind": "video_list",
             "source": "channel_videos",
+            "platform": platform,
             "videos": videos,
             "next_cursor": next_cursor,
         },

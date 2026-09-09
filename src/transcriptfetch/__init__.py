@@ -1,10 +1,10 @@
 """Official Python SDK for the TranscriptFetch API.
 
-    from transcriptfetch import TranscriptFetch
+from transcriptfetch import TranscriptFetch
 
-    tf = TranscriptFetch(api_key="tf_live_...")   # or set TRANSCRIPTFETCH_API_KEY
-    t = tf.transcripts.video("dQw4w9WgXcQ")
-    print(t.text, t.usage.balance)
+tf = TranscriptFetch(api_key="tf_live_...")   # or set TRANSCRIPTFETCH_API_KEY
+t = tf.transcripts.video("dQw4w9WgXcQ")
+print(t.text, t.usage.balance)
 """
 
 from __future__ import annotations
@@ -39,6 +39,7 @@ from .models import (
     Usage,
     Video,
     VideoList,
+    VideoStats,
 )
 
 __all__ = [
@@ -52,6 +53,7 @@ __all__ = [
     "Podcast",
     "Transcript",
     "Video",
+    "VideoStats",
     "VideoList",
     "ApiErrorBlock",
     "BatchResult",
