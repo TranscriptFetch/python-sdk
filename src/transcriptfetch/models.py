@@ -27,32 +27,15 @@ class Usage(_Model):
 class Segment(_Model):
     """A single timestamped caption cue.
 
-    ``speaker`` is set only on podcast episodes transcribed from audio, where
-    best-effort diarization labels each segment with a small integer (0, 1, …)
-    identifying who is talking. The ids are hints from voice separation, not
-    named identification, and non-podcast sources never carry them.
+    ``speaker`` is set only when the API ran speaker diarization on an audio
+    transcription: a small integer (0, 1, …) identifying who is talking. The
+    ids are hints from voice separation, not named identification.
     """
 
     start: float = 0.0
     duration: float = 0.0
     text: str = ""
     speaker: Optional[int] = None
-
-
-class Podcast(_Model):
-    """Show/episode context, present when the input resolved to a podcast.
-
-    Only ``show`` and ``episode`` are dependable. A cached hit on a bare audio
-    URL knows its show but not the feed it was resolved from, so the resolution
-    fields come back empty there.
-    """
-
-    show: Optional[str] = None
-    episode: Optional[str] = None
-    published_at: Optional[str] = None
-    feed_url: Optional[str] = None
-    audio_url: Optional[str] = None
-    resolved_via: Optional[str] = None
 
 
 class Transcript(_Model):
@@ -64,17 +47,15 @@ class Transcript(_Model):
     a 202 into a validation error instead of a pollable job. In that case
     ``text``/``segments`` are empty and ``status``/``job_id`` are set, so pass
     ``job_id`` to ``transcripts.job()`` until ``status == "completed"``.
-    Podcasts always take that path, since podcast audio never has captions.
     """
 
     kind: str = "transcript"
     video_id: str = ""
-    platform: Optional[str] = None  # youtube | tiktok | instagram | podcast | file
+    platform: Optional[str] = None  # youtube | tiktok | instagram | file
     title: Optional[str] = None
     source: Optional[str] = None  # "captions" | "audio" (AI transcription); None on a 202
     text: Optional[str] = None
     segments: List[Segment] = Field(default_factory=list)
-    podcast: Optional[Podcast] = None  # set only when the input was a podcast
     usage: Optional[Usage] = None
     # Envelope-level fields, lifted onto the model so an async job round-trips
     # as one object (the API returns them beside ``data``, not inside it).
@@ -111,7 +92,7 @@ class Video(_Model):
     ``url`` is accepted as-is by ``transcripts.video()`` and ``batch()``,
     whatever the platform. The platform is not repeated per row:
     ``VideoList.platform`` says it. ``published_at`` is exact for TikTok,
-    Instagram and podcasts and approximate on YouTube, whose listings only
+    Instagram and approximate on YouTube, whose listings only
     say "2 days ago" (exact to the day for recent videos, up to a year off
     for old ones). ``thumbnail_url`` is always ``None`` on v2: the API stopped
     sending poster images on 2026-09-08.
@@ -136,7 +117,7 @@ class VideoList(_Model):
 
     kind: Literal["video_list"] = "video_list"
     source: str = ""
-    platform: Optional[str] = None  # youtube | tiktok | instagram | spotify | apple | rss
+    platform: Optional[str] = None  # youtube | tiktok | instagram
     videos: List[Video] = Field(default_factory=list)
     next_cursor: Optional[str] = None
     usage: Optional[Usage] = None

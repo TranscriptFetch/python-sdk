@@ -1,8 +1,8 @@
 # TranscriptFetch Python SDK
 
-Official, typed Python client for the [TranscriptFetch](https://transcriptfetch.com) API: fetch transcripts as clean, structured data, plus channel, playlist and search listings across YouTube, TikTok, Instagram, Spotify, Apple Podcasts and RSS. Sync + async, fully type-hinted.
+Official, typed Python client for the [TranscriptFetch](https://transcriptfetch.com) API: fetch transcripts as clean, structured data, plus channel, playlist and search listings across YouTube, TikTok and Instagram. Sync + async, fully type-hinted.
 
-Transcripts come from **YouTube, TikTok, Instagram, podcasts, or a direct media file URL** (mp3/mp4/wav and friends). A podcast link (a Spotify or Apple Podcasts episode URL, or an RSS feed URL) is resolved to that episode's audio automatically. Channel and playlist take a URL from any of those platforms and detect it; search is YouTube by default, or any of them via `platform=`.
+Transcripts come from **YouTube, TikTok, Instagram, or a direct media file URL** (mp3/mp4/wav and friends). Channel and playlist take a URL from any of those platforms and detect it; search is YouTube by default, or any of them via `platform=`.
 
 ```bash
 pip install transcriptfetch-sdk
@@ -16,7 +16,7 @@ from transcriptfetch import TranscriptFetch
 # api_key falls back to the TRANSCRIPTFETCH_API_KEY env var
 tf = TranscriptFetch(api_key="tf_live_...")
 
-t = tf.transcripts.video("https://youtu.be/aircAruvnKk")   # or a TikTok / Instagram / podcast / file URL
+t = tf.transcripts.video("https://youtu.be/aircAruvnKk")   # or a TikTok / Instagram / file URL
 print(t.title)
 print(t.text)
 for seg in t.segments:
@@ -40,7 +40,7 @@ tf.me()                                            # validate the key + read the
 tf.health()                                        # unauthenticated liveness probe
 ```
 
-`video` and `batch` take a YouTube, TikTok or Instagram URL, a podcast link (Spotify or Apple Podcasts episode, or an RSS feed), a direct media file URL, or a bare YouTube ID. `channel`/`playlist` take a YouTube, TikTok, Instagram, Spotify, Apple Podcasts or RSS URL (or a YouTube `@handle`/`PL…` ID) and detect the platform from it. `search` takes `platform="youtube" | "tiktok" | "instagram" | "spotify" | "apple" | "rss"` (`rss` is the open podcast index). Every listed row carries a `url` that `video`/`batch` accept as-is, plus `published_at` and `stats.plays` where the source exposes them; the page carries `platform`.
+`video` and `batch` take a YouTube, TikTok or Instagram URL, a direct media file URL, or a bare YouTube ID. `channel`/`playlist` take a YouTube, TikTok or Instagram URL (or a YouTube `@handle` / `PL…` id) and detect the platform from it. `search` searches YouTube unless you pass `platform`:
 
 ```python
 page = tf.transcripts.search("lofi hip hop", platform="tiktok", limit=10)
@@ -49,9 +49,9 @@ for v in page.videos:
     t = tf.transcripts.video(v.url)
 ```
 
-## Sources without captions (including every podcast)
+## Sources without captions
 
-When a source has no captions, the API transcribes its audio and answers with a job instead of a transcript. That comes back as a `Transcript` with `status == "processing"` and a `job_id`; poll it for free until it completes. Podcast audio never has captions, so a podcast always takes this path:
+When a source has no captions, the API transcribes its audio and answers with a job instead of a transcript. That comes back as a `Transcript` with `status == "processing"` and a `job_id`; poll it for free until it completes.
 
 ```python
 import time
@@ -62,16 +62,6 @@ while t.status == "processing":
     t = tf.transcripts.job(t.job_id)
 print(t.text)
 ```
-
-A transcript resolved from a podcast link also carries a `podcast` block, so the show and episode survive the round trip (otherwise the result would be titled after the mp3 filename):
-
-```python
-t = tf.transcripts.video("https://podcasts.apple.com/us/podcast/…")
-print(t.platform)          # "podcast"
-print(t.podcast.show, "-", t.podcast.episode)
-```
-
-Podcast transcriptions include best-effort speaker diarization: each segment may carry a `speaker` integer (0, 1, …) identifying who is talking. The ids are hints from voice separation, not named identification, and non-podcast sources never carry them.
 
 Batch works the same way by default (`mode="auto"`): entries with no caption track are transcribed from audio, come back with `outcome == "processing"` and a `job_id`, cost nothing on that call, and are charged on delivery at the audio rate. Re-send the same batch once the jobs have had time to finish and the text comes back normally — or poll each `job_id` with `tf.transcripts.job()`. Pass `mode="captions"` to read existing caption tracks only, in which case a captionless video fails as `outcome == "error"` with `error.code == "no_captions"` (and `error.retry_with` naming the audio mode):
 

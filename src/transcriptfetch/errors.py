@@ -122,8 +122,8 @@ class RateLimitError(APIError):
 class UnprocessableInputError(APIError):
     """422: this input cannot be served, permanently (the 3xxx and 4xxx families).
 
-    An unsupported platform, the wrong endpoint for the platform, a podcast
-    with no public feed, a private or live video, no captions, no speech.
+    An unsupported platform, the wrong endpoint for the platform, a private
+    or live video, no captions, no speech.
     ``code`` says which; ``retry_with`` is set when a different request would
     work (e.g. ``{"mode": "audio"}`` to transcribe a captionless video).
     """

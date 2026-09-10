@@ -3,9 +3,8 @@ job, plus auto-paginating iterators. Sync (:class:`Transcripts`) and async
 (:class:`AsyncTranscripts`) variants share the parsing helpers below.
 
 ``video`` and ``batch`` take any supported source (YouTube, TikTok, Instagram,
-a direct media file URL, or a podcast link). ``channel`` and ``playlist`` take
-a YouTube, TikTok, Instagram, Spotify, Apple Podcasts or RSS URL and detect the
-platform from it; ``search`` searches YouTube unless ``platform`` says
+or a direct media file URL). ``channel`` and ``playlist`` take a YouTube,
+TikTok or Instagram URL and detect the platform from it; ``search`` searches YouTube unless ``platform`` says
 otherwise. Every listed row carries a ``url`` that ``video``/``batch`` accept
 as-is.
 """
@@ -108,16 +107,12 @@ class Transcripts:
         """Fetch a single transcript (text + timestamped segments).
 
         ``video`` is a YouTube, TikTok or Instagram URL, a direct media file
-        URL, a bare YouTube ID, or a podcast link (a Spotify or Apple Podcasts
-        episode URL, or an RSS feed URL), which is resolved to that episode's
-        audio automatically and comes back with a ``podcast`` block naming the
-        show and episode.
+        URL, or a bare YouTube ID.
 
         When the source has no captions the API transcribes its audio and
         answers with a job instead: the returned
         :class:`~transcriptfetch.Transcript` then has ``status ==
-        "processing"`` and a ``job_id`` to pass to :meth:`job`. Podcasts always
-        take that path.
+        "processing"`` and a ``job_id`` to pass to :meth:`job`.
         """
         env = self._c._request(
             "POST", _VIDEO, body={"video": video}, idempotent=True, idempotency_key=idempotency_key
@@ -171,9 +166,8 @@ class Transcripts:
     ) -> VideoList:
         """Keyword search, one page of results (metadata only).
 
-        YouTube by default; pass ``platform`` ("tiktok", "instagram",
-        "spotify", "apple" or "rss", the open podcast index) to search
-        elsewhere. Every result's ``url`` is accepted by ``video()`` as-is.
+        YouTube by default; pass ``platform`` ("tiktok" or "instagram") to
+        search elsewhere. Every result's ``url`` is accepted by ``video()`` as-is.
         """
         env = self._c._request(
             "POST",

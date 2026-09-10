@@ -14,8 +14,6 @@ from tests.data import (
     JOB_DONE_ENV,
     JOB_PROCESSING_ENV,
     ME_ENV,
-    PODCAST_ACCEPTED_ENV,
-    PODCAST_DONE_ENV,
     VIDEO_ENV,
     video_list,
 )
@@ -177,40 +175,7 @@ def test_video_without_captions_returns_pollable_job() -> None:
 
 
 @respx.mock
-def test_podcast_link_returns_show_and_episode() -> None:
-    respx.post(f"{BASE}/api/v2/transcripts/video").mock(
-        return_value=httpx.Response(202, json=PODCAST_ACCEPTED_ENV)
-    )
-    respx.get(f"{BASE}/api/v2/transcripts/jobs/asr_2").mock(
-        return_value=httpx.Response(200, json=PODCAST_DONE_ENV)
-    )
-    with _client() as tf:
-        started = tf.transcripts.video("https://feeds.example.com/show.xml")
-        done = tf.transcripts.job("asr_2")
-
-    assert started.platform == "podcast"
-    assert started.podcast is not None
-    assert started.podcast.show == "The Example Show"
-    assert started.podcast.audio_url == "https://cdn.example.com/ep12.mp3"
-    assert started.podcast.resolved_via == "rss"
-
-    # The show/episode must survive the async hop, or the delivered transcript
-    # ends up titled after the mp3 filename.
-    assert done.podcast is not None and done.podcast.episode == "Ep 12: Widgets"
-    assert done.title == "Ep 12: Widgets"
-    assert done.text == "welcome back"
-
-
 @respx.mock
-def test_non_podcast_transcript_has_no_podcast_block() -> None:
-    respx.post(f"{BASE}/api/v2/transcripts/video").mock(
-        return_value=httpx.Response(200, json=VIDEO_ENV)
-    )
-    with _client() as tf:
-        t = tf.transcripts.video("dQw4w9WgXcQ")
-    assert t.podcast is None
-
-
 def test_missing_api_key_raises(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("TRANSCRIPTFETCH_API_KEY", raising=False)
     with pytest.raises(ValueError):
