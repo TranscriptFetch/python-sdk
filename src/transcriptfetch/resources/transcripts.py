@@ -4,9 +4,9 @@ job, plus auto-paginating iterators. Sync (:class:`Transcripts`) and async
 
 ``video`` and ``batch`` take any supported source (YouTube, TikTok, Instagram,
 or a direct media file URL). ``channel`` and ``playlist`` take a YouTube,
-TikTok or Instagram URL and detect the platform from it; ``search`` searches YouTube unless ``platform`` says
-otherwise. Every listed row carries a ``url`` that ``video``/``batch`` accept
-as-is.
+TikTok or Instagram URL and detect the platform from it; ``search`` searches
+YouTube unless ``platform`` says otherwise. Every listed row carries a ``url``
+that ``video``/``batch`` accept as-is.
 """
 
 from __future__ import annotations
