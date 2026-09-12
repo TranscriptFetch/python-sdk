@@ -25,7 +25,7 @@ for seg in t.segments:
 print("credits left:", t.usage.balance)
 ```
 
-Get an API key (100 free credits) at <https://transcriptfetch.com/app>. One credit per successful fetch; failed/blocked/no-transcript requests are free.
+Get an API key (50 free credits) at <https://transcriptfetch.com/app>. One credit per successful fetch; failed/blocked/no-transcript requests are free.
 
 ## Endpoints
 
