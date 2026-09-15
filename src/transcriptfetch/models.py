@@ -47,12 +47,30 @@ class Transcript(_Model):
     a 202 into a validation error instead of a pollable job. In that case
     ``text``/``segments`` are empty and ``status``/``job_id`` are set, so pass
     ``job_id`` to ``transcripts.job()`` until ``status == "completed"``.
+
+    Every metadata field (``video_id``, ``url``, ``platform``, ``title``,
+    ``channel``, ``duration``, ``language``, ``thumbnail_url``, ``source``) is
+    present on every transcript, whichever platform or path served it; ``None``
+    means the API could not determine it, never that it was left out (API
+    contract of 2026-09-15).
     """
 
     kind: str = "transcript"
     video_id: str = ""
     platform: Optional[str] = None  # youtube | tiktok | instagram | file
     title: Optional[str] = None
+    url: Optional[str] = None
+    """Canonical URL of the item, when known. Accepted as-is by ``transcripts.video()``."""
+    channel: Optional[str] = None
+    """The creator, as the platform names them: a YouTube channel name, a TikTok
+    @handle, an Instagram username, the uploader for a file."""
+    duration: Optional[float] = None
+    """Media length in seconds, when the source reports it."""
+    language: Optional[str] = None
+    """The caption track's language code, or the language detected during AI transcription."""
+    thumbnail_url: Optional[str] = Field(default=None, alias="thumbnailUrl")
+    """Poster image. TikTok and Instagram serve signed, expiring URLs, so copy
+    the image rather than hotlinking it."""
     source: Optional[str] = None  # "captions" | "audio" (AI transcription); None on a 202
     text: Optional[str] = None
     segments: List[Segment] = Field(default_factory=list)
@@ -155,6 +173,18 @@ class BatchResult(_Model):
     outcome: str = "error"  # ok | processing | error
     error: Optional[ApiErrorBlock] = None
     title: Optional[str] = None
+    url: Optional[str] = None
+    """Canonical URL of the item, when known. Accepted as-is by ``transcripts.video()``."""
+    channel: Optional[str] = None
+    """The creator, as the platform names them: a YouTube channel name, a TikTok
+    @handle, an Instagram username, the uploader for a file."""
+    duration: Optional[float] = None
+    """Media length in seconds, when the source reports it."""
+    language: Optional[str] = None
+    """The caption track's language code, or the language detected during AI transcription."""
+    thumbnail_url: Optional[str] = Field(default=None, alias="thumbnailUrl")
+    """Poster image. TikTok and Instagram serve signed, expiring URLs, so copy
+    the image rather than hotlinking it."""
     source: Optional[str] = None  # "captions" | "audio" on outcome "ok"
     text: Optional[str] = None
     segments: Optional[List[Segment]] = None

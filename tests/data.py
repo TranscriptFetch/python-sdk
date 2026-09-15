@@ -12,7 +12,14 @@ VIDEO_ENV: dict[str, Any] = {
     "data": {
         "kind": "transcript",
         "video_id": "abc",
+        "url": "https://www.youtube.com/watch?v=abc",
+        "platform": "youtube",
         "title": "Example",
+        "channel": "Example Channel",
+        "duration": 212,
+        "language": "en",
+        "thumbnail_url": "https://i.ytimg.com/vi/abc/mqdefault.jpg",
+        "source": "captions",
         "text": "hello world",
         "segments": [{"start": 0, "duration": 1.5, "text": "hi"}],
     },
@@ -25,7 +32,19 @@ BATCH_ENV: dict[str, Any] = {
     "data": {
         "kind": "transcript_batch",
         "results": [
-            {"video_id": "a", "outcome": "ok", "source": "captions", "text": "one", "bytes": 10},
+            {
+                "video_id": "a",
+                "outcome": "ok",
+                "url": "https://www.youtube.com/watch?v=a",
+                "title": "A",
+                "channel": "Example Channel",
+                "duration": 61,
+                "language": "en",
+                "thumbnail_url": "https://i.ytimg.com/vi/a/mqdefault.jpg",
+                "source": "captions",
+                "text": "one",
+                "bytes": 10,
+            },
             # v2: a failed entry carries the same error block a request-level
             # failure does, and nothing else.
             {
@@ -83,7 +102,14 @@ JOB_DONE_ENV: dict[str, Any] = {
     "data": {
         "kind": "transcript",
         "video_id": "abc",
+        "url": "https://www.youtube.com/watch?v=abc",
+        "platform": "youtube",
         "title": "Example",
+        "channel": "Example Channel",
+        "duration": 212,
+        "language": "en",
+        "thumbnail_url": "https://i.ytimg.com/vi/abc/mqdefault.jpg",
+        "source": "captions",
         "text": "hello world",
         "segments": [{"start": 0, "duration": 1.5, "text": "hi"}],
     },

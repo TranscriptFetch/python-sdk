@@ -33,6 +33,14 @@ def test_video_parses_and_sends_headers() -> None:
         t = tf.transcripts.video("dQw4w9WgXcQ")
 
     assert t.video_id == "abc"
+    # The one metadata block every transcript carries (API contract of 2026-09-15).
+    assert t.url == "https://www.youtube.com/watch?v=abc"
+    assert t.platform == "youtube"
+    assert t.channel == "Example Channel"
+    assert t.duration == 212
+    assert t.language == "en"
+    assert t.thumbnail_url == "https://i.ytimg.com/vi/abc/mqdefault.jpg"
+    assert t.source == "captions"
     assert t.text == "hello world"
     assert t.segments[0].text == "hi"
     assert t.usage is not None and t.usage.balance == 99
@@ -102,6 +110,12 @@ def test_batch() -> None:
     assert [r.video_id for r in res.results] == ["a", "b", "c"]
     assert res.results[0].outcome == "ok"
     assert res.results[0].source == "captions"
+    assert res.results[0].channel == "Example Channel"
+    assert res.results[0].duration == 61
+    assert res.results[0].language == "en"
+    assert res.results[0].thumbnail_url == "https://i.ytimg.com/vi/a/mqdefault.jpg"
+    # A failed entry carries none of the metadata, and that is a None, not an error.
+    assert res.results[1].channel is None
     # A failed entry carries the standard error block.
     assert res.results[1].outcome == "error"
     assert res.results[1].error is not None

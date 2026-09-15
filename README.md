@@ -25,6 +25,11 @@ for seg in t.segments:
 print("credits left:", t.usage.balance)
 ```
 
+Every transcript carries the same metadata whichever platform served it:
+`video_id`, `url`, `platform`, `title`, `channel` (the creator), `duration` in
+seconds, `language`, `thumbnail_url` and `source` (`"captions"` or `"audio"`).
+A value the API could not determine is `None`, never missing.
+
 Get an API key (50 free credits) at <https://transcriptfetch.com/app>. One credit per successful fetch; failed/blocked/no-transcript requests are free.
 
 ## Endpoints
